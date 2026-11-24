@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Applications</RootNamespace>
+    <!-- Ignore files left in the former project directory after an in-place update. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Applications/**</DefaultItemExcludes>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
