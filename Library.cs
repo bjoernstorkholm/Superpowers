@@ -26,6 +26,13 @@ public sealed class Library(string root)
             .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
 
+    public int CountFolders() =>
+        Directory.EnumerateDirectories(Resolve("."), "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        }).Count();
+
     public FileStream Open(string path) =>
         new(Resolve(path), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 

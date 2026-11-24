@@ -11,6 +11,15 @@
 <main>
     <aside aria-label="Folders and files">
         <h2>Folders and files</h2>
+        @if (_root is not null)
+        {
+            <p class="path" role="status">@(_folderCount switch
+                {
+                    null => "Folder count unavailable",
+                    1 => "1 folder",
+                    int count => $"{count:N0} folders"
+                })</p>
+        }
         <p class="path">@Library.Root</p>
         @if (_root is not null)
         {
@@ -133,6 +142,7 @@
 
 @code {
     private Entry? _root;
+    private int? _folderCount;
     private Entry? _selected;
     private Preview? _preview;
     private string? _pdfUrl;
@@ -159,6 +169,15 @@
             _root = null;
             _selected = null;
             return;
+        }
+
+        try
+        {
+            _folderCount = Library.CountFolders();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _folderCount = null;
         }
 
         if (_selected is null)
