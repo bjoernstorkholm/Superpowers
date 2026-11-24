@@ -1,0 +1,127 @@
+@page "/"
+@inject ApplicationFiles Files
+
+<header class="masthead">
+    <h1>ApplicationLog</h1>
+    <button class="action" @onclick="Refresh">Refresh folders</button>
+</header>
+
+<main class="workspace">
+    <aside class="sidebar" aria-label="Application files">
+        <h2>Applications</h2>
+        <p class="root" title="@Files.Root">@Files.Root</p>
+        @if (_rootError is not null)
+        {
+            <p class="message" role="status">@_rootError</p>
+        }
+        else if (_entries.Length == 0)
+        {
+            <p class="message">This folder is empty.</p>
+        }
+        else
+        {
+            <ul class="tree" @key="_entries">
+                @foreach (var entry in _entries)
+                {
+                    <TreeNode @key="entry.RelativePath" Entry="entry" SelectedPath="@_selected?.RelativePath" OnSelect="Select" />
+                }
+            </ul>
+        }
+    </aside>
+
+    <section class="preview" aria-label="Document preview">
+        @if (_selected is { } selected)
+        {
+            var type = ApplicationFiles.PreviewType(selected.RelativePath);
+            var url = "/preview?path=" + Uri.EscapeDataString(selected.RelativePath);
+            <div class="document-header">
+                <div>
+                    <h2>@selected.Name</h2>
+                    <p class="root">@selected.RelativePath</p>
+                </div>
+                @if (ApplicationFiles.CanOpenOnDesktop(selected.RelativePath))
+                {
+                    <button class="action primary" @onclick="OpenSelected">Open in desktop app</button>
+                }
+            </div>
+            @if (_openError is not null)
+            {
+                <p class="message error" role="status">@_openError</p>
+            }
+            @if (type?.StartsWith("image/", StringComparison.Ordinal) == true)
+            {
+                <div class="image-preview"><img src="@url" alt="@selected.Name" /></div>
+            }
+            else if (type is not null)
+            {
+                <iframe @key="url" src="@url" title="@selected.Name"></iframe>
+            }
+            else
+            {
+                <div class="empty">
+                    <h3>Preview unavailable</h3>
+                    <p>@(ApplicationFiles.CanOpenOnDesktop(selected.RelativePath)
+                        ? "Open this document in its desktop app."
+                        : "Open this file from Windows File Explorer.")</p>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="empty">
+                <h2>Document preview</h2>
+                <p>Select a file from the application folders.</p>
+            </div>
+        }
+    </section>
+</main>
+
+@code {
+    private FileEntry[] _entries = [];
+    private FileEntry? _selected;
+    private string? _rootError;
+    private string? _openError;
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        _selected = null;
+        _openError = null;
+        _rootError = null;
+        try
+        {
+            _entries = Files.List("");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _rootError = "The Applications folder could not be read. Check the folder path and permissions.";
+        }
+    }
+
+    private void Select(FileEntry entry)
+    {
+        _selected = entry;
+        _openError = null;
+    }
+
+    private void OpenSelected()
+    {
+        if (_selected is null)
+            return;
+
+        try
+        {
+            Files.OpenOnDesktop(_selected.RelativePath);
+            _openError = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _openError = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            _openError = "Windows could not open this file. Check that it still exists and has a default app.";
+        }
+    }
+}

@@ -1,0 +1,66 @@
+@inject ApplicationFiles Files
+
+<li>
+    @if (Entry.IsFolder)
+    {
+        <button class="tree-row folder" aria-expanded="@(_expanded ? "true" : "false")" @onclick="Toggle">
+            <span class="tree-icon" aria-hidden="true">@(_expanded ? "▾" : "▸")</span>
+            <span>@Entry.Name</span>
+        </button>
+        @if (_expanded)
+        {
+            @if (_error is not null)
+            {
+                <p class="tree-note" role="status">@_error</p>
+            }
+            else if (_children.Length == 0)
+            {
+                <p class="tree-note">Empty folder</p>
+            }
+            else
+            {
+                <ul class="tree branch">
+                    @foreach (var child in _children)
+                    {
+                        <TreeNode @key="child.RelativePath" Entry="child" SelectedPath="@SelectedPath" OnSelect="OnSelect" />
+                    }
+                </ul>
+            }
+        }
+    }
+    else
+    {
+        <button class="tree-row file" aria-pressed="@(SelectedPath == Entry.RelativePath ? "true" : "false")"
+                @onclick="() => OnSelect.InvokeAsync(Entry)">
+            <span class="tree-icon file-icon" aria-hidden="true"></span>
+            <span>@Entry.Name</span>
+        </button>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public FileEntry Entry { get; set; } = default!;
+    [Parameter] public string? SelectedPath { get; set; }
+    [Parameter] public EventCallback<FileEntry> OnSelect { get; set; }
+
+    private FileEntry[] _children = [];
+    private bool _expanded;
+    private string? _error;
+
+    private void Toggle()
+    {
+        _expanded = !_expanded;
+        if (!_expanded)
+            return;
+
+        _error = null;
+        try
+        {
+            _children = Files.List(Entry.RelativePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _error = "This folder could not be read.";
+        }
+    }
+}
