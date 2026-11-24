@@ -7,16 +7,16 @@ A local Blazor app for browsing job-application folders and previewing documents
 Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), then open PowerShell in the folder containing this README and run:
 
 ```powershell
-dotnet run --project .\Applications
+dotnet run --project .\ApplicationLog.csproj
 ```
 
 Open [http://localhost:5080](http://localhost:5080). Press Ctrl+C in PowerShell to stop the app.
 
-The default folder is `C:\Users\bjoer\Documents\Applications`. Set `ApplicationsRoot` in `Applications/appsettings.json` or set the environment variable before starting:
+The default folder is `C:\Users\bjoer\Documents\Applications`. Set `ApplicationsRoot` in `appsettings.json` or set the environment variable before starting:
 
 ```powershell
 $env:ApplicationsRoot = 'D:\Job applications'
-dotnet run --project .\Applications
+dotnet run --project .\ApplicationLog.csproj
 ```
 
 The tree prefixes folder and file names with their last-modified time in local Windows time. **Refresh folders** reloads the tree and opens the root again. The app reads files locally and leaves their names and contents intact.
