@@ -1,0 +1,10 @@
+<p class="word-paragraph">
+    @foreach (var run in Value.Runs)
+    {
+        <span class="@(run.Bold ? "bold" : "") @(run.Italic ? "italic" : "")">@run.Text</span>
+    }
+</p>
+
+@code {
+    [Parameter, EditorRequired] public WordParagraph Value { get; set; } = default!;
+}

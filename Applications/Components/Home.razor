@@ -1,0 +1,224 @@
+@page "/"
+@rendermode InteractiveServer
+@inject Library Library
+@inject ILogger<Home> Logger
+
+<header class="top">
+    <h1>Applications</h1>
+    <button class="action" @onclick="Refresh">Refresh folders</button>
+</header>
+
+<main>
+    <aside aria-label="Folders and files">
+        <h2>Folders and files</h2>
+        <p class="path">@Library.Root</p>
+        @if (_root is not null)
+        {
+            <ul class="tree">
+                <TreeEntry @key="_revision" Item="_root" StartExpanded="true"
+                           Selected="@(_selected?.Path)" OnSelect="Select" />
+            </ul>
+        }
+        else
+        {
+            <p role="status">The applications folder could not be opened. Check the configured folder path.</p>
+        }
+    </aside>
+
+    <section class="preview" aria-label="Document preview">
+        @if (_selected is null)
+        {
+            <div class="empty">
+                <h2>Document preview</h2>
+                <p>Select a file from the folder tree.</p>
+            </div>
+        }
+        else
+        {
+            <header class="document-header">
+                <h2>@_selected.Name</h2>
+                <p class="path">@_selected.Path</p>
+            </header>
+            @if (_message is not null)
+            {
+                <p class="notice" role="status">@_message</p>
+            }
+            else if (_pdfUrl is not null)
+            {
+                <iframe @key="_pdfUrl" src="@_pdfUrl" title="PDF preview of @_selected.Name"></iframe>
+            }
+            else if (_preview?.Text is { } text)
+            {
+                <pre class="paper text-preview">@text</pre>
+            }
+            else if (_preview?.Word is { } word)
+            {
+                <article class="paper">
+                    @foreach (var block in word)
+                    {
+                        if (block is WordParagraph paragraph)
+                        {
+                            <Paragraph Value="paragraph" />
+                        }
+                        else if (block is WordTable table)
+                        {
+                            <table><tbody>
+                                @foreach (var row in table.Rows)
+                                {
+                                    <tr>
+                                        @foreach (var cell in row)
+                                        {
+                                            <td>
+                                                @foreach (var item in cell)
+                                                {
+                                                    <Paragraph Value="item" />
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody></table>
+                        }
+                    }
+                </article>
+            }
+            else if (_preview?.Sheets is { Length: > 0 } sheets)
+            {
+                <div class="sheet-picker" role="group" aria-label="Worksheets">
+                    @for (var index = 0; index < sheets.Length; index++)
+                    {
+                        var sheetIndex = index;
+                        <button class="action" aria-pressed="@(_sheet == sheetIndex ? "true" : "false")"
+                                @onclick="() => _sheet = sheetIndex">@sheets[index].Name</button>
+                    }
+                </div>
+                var sheet = sheets[_sheet];
+                @if (sheet.Truncated)
+                {
+                    <p class="notice">Showing up to 200 rows and 40 columns.</p>
+                }
+                @if (sheet.Cells.Length == 0)
+                {
+                    <p class="notice">This sheet is empty.</p>
+                }
+                else
+                {
+                    <div class="grid-scroll" tabindex="0" aria-label="Worksheet @sheet.Name">
+                        <table class="grid">
+                            <thead><tr><td></td>
+                                @for (var column = 0; column < sheet.Cells[0].Length; column++)
+                                {
+                                    <th scope="col">@ColumnName(sheet.FirstColumn + column)</th>
+                                }
+                            </tr></thead>
+                            <tbody>
+                                @for (var row = 0; row < sheet.Cells.Length; row++)
+                                {
+                                    <tr>
+                                        <th scope="row">@(sheet.FirstRow + row)</th>
+                                        @foreach (var cell in sheet.Cells[row])
+                                        {
+                                            <td>@cell</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        }
+    </section>
+</main>
+
+@code {
+    private Entry? _root;
+    private Entry? _selected;
+    private Preview? _preview;
+    private string? _pdfUrl;
+    private string? _message;
+    private int _revision;
+    private int _sheet;
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        _revision++;
+        try
+        {
+            _root = Library.Describe(".");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _root = null;
+        }
+
+        if (_root is not { Folder: true })
+        {
+            _root = null;
+            _selected = null;
+            return;
+        }
+
+        if (_selected is null)
+            return;
+
+        try
+        {
+            var updated = Library.Describe(_selected.Path);
+            if (updated.Folder)
+                _selected = null;
+            else
+                Select(updated);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _selected = null;
+        }
+    }
+
+    private void Select(Entry entry)
+    {
+        _selected = entry;
+        _preview = null;
+        _pdfUrl = null;
+        _message = null;
+        _sheet = 0;
+        try
+        {
+            switch (Path.GetExtension(entry.Name).ToLowerInvariant())
+            {
+                case ".pdf":
+                    using (Library.Open(entry.Path)) { }
+                    _pdfUrl = "preview/pdf?path=" + Uri.EscapeDataString(entry.Path) + "&v=" + _revision;
+                    break;
+                case ".txt":
+                case ".docx":
+                case ".xlsx":
+                    _preview = PreviewReader.Read(Library, entry);
+                    break;
+                default:
+                    _message = "Preview is available for PDF, TXT, DOCX and XLSX files.";
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning(e, "Unable to preview the selected file.");
+            _message = "This file could not be previewed.";
+        }
+    }
+
+    private static string ColumnName(int column)
+    {
+        var name = "";
+        while (column > 0)
+        {
+            column--;
+            name = (char)('A' + column % 26) + name;
+            column /= 26;
+        }
+        return name;
+    }
+}

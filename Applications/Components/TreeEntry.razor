@@ -1,0 +1,70 @@
+@inject Library Library
+
+<li>
+    @if (Item.Folder)
+    {
+        <button class="entry" aria-expanded="@(_children is null ? "false" : "true")" @onclick="Toggle">
+            <span class="marker" aria-hidden="true">@(_children is null ? "▸" : "▾")</span>
+            <time>@Item.Modified.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time>
+            <strong>@Item.Name</strong>
+        </button>
+        @if (_error is not null)
+        {
+            <p class="tree-note" role="status">@_error</p>
+        }
+        @if (_children is { Length: 0 })
+        {
+            <p class="tree-note">Empty folder</p>
+        }
+        @if (_children is { Length: > 0 })
+        {
+            <ul>
+                @foreach (var child in _children)
+                {
+                    <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect" />
+                }
+            </ul>
+        }
+    }
+    else
+    {
+        <button class="entry @(Selected == Item.Path ? "selected" : "")"
+                aria-pressed="@(Selected == Item.Path ? "true" : "false")"
+                @onclick="() => OnSelect.InvokeAsync(Item)">
+            <span class="marker" aria-hidden="true">·</span>
+            <time>@Item.Modified.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time>
+            <span>@Item.Name</span>
+        </button>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public Entry Item { get; set; } = default!;
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<Entry> OnSelect { get; set; }
+    [Parameter] public bool StartExpanded { get; set; }
+    private Entry[]? _children;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (StartExpanded)
+            Toggle();
+    }
+
+    private void Toggle()
+    {
+        _error = null;
+        if (_children is not null)
+        {
+            _children = null;
+            return;
+        }
+
+        try { _children = Library.List(Item.Path); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _error = "This folder could not be read.";
+        }
+    }
+}
