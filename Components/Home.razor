@@ -1,4 +1,5 @@
 @page "/"
+@implements IDisposable
 @rendermode InteractiveServer
 @inject Library Library
 @inject ILogger<Home> Logger
@@ -56,8 +57,22 @@
             {
                 <iframe @key="_pdfUrl" src="@_pdfUrl" title="PDF preview of @_selected.Name"></iframe>
             }
+            else if (_textDocument is not null)
+            {
+                <div class="text-editor">
+                    <textarea @key="_textEditorRevision" class="paper text-preview"
+                              aria-label="Edit @_selected.Name" maxlength="@TextDocument.MaxCharacters"
+                              @bind="_draft" @bind:event="oninput" @bind:after="ScheduleSave"></textarea>
+                    <p class="notice" role="status">@_saveStatus</p>
+                    @if (_draftPending && _saveDelay is null)
+                    {
+                        <button class="action" @onclick="ReloadText">Discard draft and reload</button>
+                    }
+                </div>
+            }
             else if (_preview?.Text is { } text)
             {
+                <p class="notice">Read-only preview. The file is too large or uses an unsupported encoding for editing.</p>
                 <pre class="paper text-preview">@text</pre>
             }
             else if (_preview?.Word is { } word)
@@ -149,11 +164,21 @@
     private string? _message;
     private int _revision;
     private int _sheet;
+    private TextDocument? _textDocument;
+    private string _draft = "";
+    private string _saveStatus = "";
+    private bool _draftPending;
+    private bool _saveConflict;
+    private int _textEditorRevision;
+    private CancellationTokenSource? _saveDelay;
 
     protected override void OnInitialized() => Refresh();
 
     private void Refresh()
     {
+        if (!SaveDraft())
+            return;
+
         _revision++;
         try
         {
@@ -199,6 +224,15 @@
 
     private void Select(Entry entry)
     {
+        if (SaveDraft())
+            LoadPreview(entry);
+    }
+
+    private void LoadPreview(Entry entry)
+    {
+        _textDocument = null;
+        _draftPending = false;
+        _saveConflict = false;
         _selected = entry;
         _preview = null;
         _pdfUrl = null;
@@ -213,6 +247,16 @@
                     _pdfUrl = "preview/pdf?path=" + Uri.EscapeDataString(entry.Path) + "&v=" + _revision;
                     break;
                 case ".txt":
+                    _textDocument = Library.ReadText(entry.Path);
+                    if (_textDocument is not null)
+                    {
+                        _draft = _textDocument.Text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+                        _saveStatus = "Autosave on";
+                        _textEditorRevision++;
+                        break;
+                    }
+                    _preview = PreviewReader.Read(Library, entry);
+                    break;
                 case ".docx":
                 case ".xlsx":
                     _preview = PreviewReader.Read(Library, entry);
@@ -227,6 +271,77 @@
             Logger.LogWarning(e, "Unable to preview the selected file.");
             _message = "This file could not be previewed.";
         }
+    }
+
+    private async Task ScheduleSave()
+    {
+        _draftPending = true;
+        if (_saveConflict)
+            return;
+
+        _saveStatus = "Saving…";
+        _saveDelay?.Cancel();
+        using var delay = new CancellationTokenSource();
+        _saveDelay = delay;
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), delay.Token);
+            _saveDelay = null;
+            SaveDraft();
+        }
+        catch (OperationCanceledException) when (delay.IsCancellationRequested)
+        {
+        }
+    }
+
+    private bool SaveDraft()
+    {
+        _saveDelay?.Cancel();
+        _saveDelay = null;
+        if (!_draftPending || _textDocument is null || _selected is null)
+            return true;
+        if (_saveConflict)
+            return false;
+
+        try
+        {
+            var saved = Library.SaveText(_selected.Path, _textDocument, _draft);
+            if (saved is null)
+            {
+                _saveConflict = true;
+                _saveStatus = "The file changed on disk. Copy your draft before reloading.";
+                return false;
+            }
+
+            _textDocument = saved;
+            _draftPending = false;
+            _saveStatus = "Saved";
+            return true;
+        }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            _saveConflict = true;
+            _saveStatus = "The file was removed. Copy your draft before reloading.";
+            return false;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Logger.LogWarning(e, "Unable to save the selected text file.");
+            _saveStatus = "Could not save. Your draft is still here. Edit again or select a file to retry.";
+            return false;
+        }
+    }
+
+    private void ReloadText()
+    {
+        if (_selected is not null)
+            LoadPreview(_selected);
+    }
+
+    public void Dispose()
+    {
+        _saveDelay?.Cancel();
+        _saveDelay = null;
     }
 
     private static string ColumnName(int column)

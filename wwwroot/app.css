@@ -98,3 +98,11 @@ td, th { border: 1px solid #cbd8d2; padding: .4rem .65rem; }
     .preview { min-height: 45dvh; padding: 1rem; }
     iframe { min-height: 55dvh; }
 }
+
+.text-editor { display: grid; gap: .75rem; justify-items: start; }
+.text-editor textarea {
+    width: 100%;
+    min-height: 45vh;
+    resize: vertical;
+    font: 1rem/1.55 monospace;
+}

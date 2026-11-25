@@ -4,6 +4,8 @@ public sealed record Entry(string Path, string Name, bool Folder, DateTime Modif
 
 public sealed class Library(string root)
 {
+    private readonly object _textSaveLock = new();
+
     public string Root { get; } = Path.GetFullPath(root);
 
     public Entry Describe(string path)
@@ -35,6 +37,55 @@ public sealed class Library(string root)
 
     public FileStream Open(string path) =>
         new(Resolve(path), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    internal TextDocument? ReadText(string path)
+    {
+        EnsureTextFile(path);
+        using var stream = Open(path);
+        return TextDocument.Read(stream);
+    }
+
+    internal TextDocument? SaveText(string path, TextDocument original, string draft)
+    {
+        EnsureTextFile(path);
+        if (draft.Length > TextDocument.MaxCharacters)
+            throw new ArgumentException("The draft exceeds the text editor limit.");
+
+        var bytes = original.Encode(draft);
+        lock (_textSaveLock)
+        {
+            var fullPath = Resolve(path);
+            var temporaryPath = Path.Combine(Path.GetDirectoryName(fullPath)!, $".{Guid.NewGuid():N}.tmp");
+            var pending = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write);
+            try
+            {
+                using (pending)
+                {
+                    pending.Write(bytes);
+                    pending.Flush(flushToDisk: true);
+                }
+
+                byte[]? currentBytes;
+                using (var current = Open(path))
+                    currentBytes = TextDocument.ReadBytes(current);
+                if (currentBytes is null || !currentBytes.AsSpan().SequenceEqual(original.Version))
+                    return null;
+
+                File.Replace(temporaryPath, fullPath, destinationBackupFileName: null);
+                return original with { Version = bytes };
+            }
+            finally
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    private static void EnsureTextFile(string path)
+    {
+        if (!string.Equals(Path.GetExtension(path), ".txt", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Only TXT files can be edited.");
+    }
 
     private string Resolve(string path)
     {
