@@ -22,7 +22,8 @@
                 @foreach (var child in _children)
                 {
                     <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect"
-                               SortOrder="SortOrder" />
+                               SortOrder="SortOrder" ExpandedSiblingPath="@_expandedChildPath"
+                               OnExpansionChanged="@(StartExpanded ? EventCallback.Factory.Create<string?>(this, SetExpandedChild) : default)" />
                 }
             </ul>
         }
@@ -45,18 +46,24 @@
     [Parameter] public EventCallback<Entry> OnSelect { get; set; }
     [Parameter] public bool StartExpanded { get; set; }
     [Parameter] public TreeSortOrder SortOrder { get; set; }
+    [Parameter] public string? ExpandedSiblingPath { get; set; }
+    [Parameter] public EventCallback<string?> OnExpansionChanged { get; set; }
     private Entry[]? _children;
+    private string? _expandedChildPath;
     private TreeSortOrder _childrenSortOrder;
     private string? _error;
 
     protected override void OnInitialized()
     {
         if (StartExpanded)
-            Toggle();
+            LoadChildren();
     }
 
     protected override void OnParametersSet()
     {
+        if (OnExpansionChanged.HasDelegate && ExpandedSiblingPath != Item.Path)
+            _children = null;
+
         if (_children is null || _childrenSortOrder == SortOrder)
             return;
 
@@ -64,15 +71,25 @@
         _childrenSortOrder = SortOrder;
     }
 
-    private void Toggle()
+    private async Task Toggle()
     {
-        _error = null;
         if (_children is not null)
         {
             _children = null;
+            await OnExpansionChanged.InvokeAsync(null);
             return;
         }
 
+        LoadChildren();
+        if (_children is not null)
+            await OnExpansionChanged.InvokeAsync(Item.Path);
+    }
+
+    private void SetExpandedChild(string? path) => _expandedChildPath = path;
+
+    private void LoadChildren()
+    {
+        _error = null;
         try
         {
             _children = Library.List(Item.Path, SortOrder);
