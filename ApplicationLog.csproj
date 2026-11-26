@@ -4,10 +4,12 @@
     <RootNamespace>Applications</RootNamespace>
     <!-- Ignore files left in the former project directory after an in-place update. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);Applications/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);ApplicationLog.Tests/**</DefaultItemExcludes>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <InternalsVisibleTo Include="ApplicationLog.Tests" />
   </ItemGroup>
 </Project>
