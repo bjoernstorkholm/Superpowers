@@ -33,7 +33,9 @@ public sealed class Library(string root)
 
     internal static Entry[] SortEntries(IEnumerable<Entry> entries, TreeSortOrder sortOrder)
     {
-        var sorted = entries.OrderByDescending(entry => entry.Folder);
+        var sorted = entries
+            .OrderByDescending(entry => !entry.Folder && string.Equals(entry.Name, "log.txt", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(entry => entry.Folder);
         if (sortOrder == TreeSortOrder.DateModified)
             sorted = sorted.ThenByDescending(entry => entry.Modified.ToUniversalTime());
 

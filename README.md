@@ -19,6 +19,6 @@ $env:ApplicationsRoot = 'D:\Job applications'
 dotnet run --project .\ApplicationLog.csproj
 ```
 
-The tree prefixes folder and file names with their last-modified time in local Windows time. Use **Sort by** to switch between name and newest modification time. Folders stay above files. **Refresh folders** reloads the tree and opens the root again. The app reads files locally. TXT edits are saved back to the selected file.
+The tree prefixes folder and file names with their last-modified time in local Windows time. Use **Sort by** to switch between name and newest modification time. `log.txt` appears first in each folder. The remaining folders appear before other files. **Refresh folders** reloads the tree and opens the root again. The app reads files locally. TXT edits are saved back to the selected file.
 
 PDFs use the browser viewer. TXT files up to 200,000 characters can be edited in the preview pane. The editor supports UTF-8 and Unicode files with a byte-order mark, and saves after about one second of inactivity or when you switch files. If the file changes on disk, copy your draft before reloading. Word previews show main document paragraphs, inline bold and italic, and basic tables. Excel previews show up to 200 rows and 40 columns per worksheet, with a button to switch sheets. Excel formulas show cached results when available. Older `.xls` files appear in the tree with an unsupported-preview message.
