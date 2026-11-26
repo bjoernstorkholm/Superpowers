@@ -1,11 +1,9 @@
-@inject Library Library
-
 <li>
     @if (Item.Folder)
     {
         <button class="entry" aria-expanded="@(_children is null ? "false" : "true")" @onclick="Toggle">
             <span class="marker" aria-hidden="true">@(_children is null ? "▸" : "▾")</span>
-            <time>@Item.Modified.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time>
+            <time>@ModifiedLabel</time>
             <strong>@Item.Name</strong>
         </button>
         @if (_error is not null)
@@ -23,7 +21,7 @@
                 {
                     <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect"
                                SortOrder="SortOrder" ExpandedSiblingPath="@_expandedChildPath"
-                               OnExpansionChanged="@(StartExpanded ? EventCallback.Factory.Create<string?>(this, SetExpandedChild) : default)" />
+                               OnExpansionChanged="ChildExpansionChanged" />
                 }
             </ul>
         }
@@ -34,70 +32,8 @@
                 aria-pressed="@(Selected == Item.Path ? "true" : "false")"
                 @onclick="() => OnSelect.InvokeAsync(Item)">
             <span class="marker" aria-hidden="true">·</span>
-            <time>@Item.Modified.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time>
+            <time>@ModifiedLabel</time>
             <span>@Item.Name</span>
         </button>
     }
 </li>
-
-@code {
-    [Parameter, EditorRequired] public Entry Item { get; set; } = default!;
-    [Parameter] public string? Selected { get; set; }
-    [Parameter] public EventCallback<Entry> OnSelect { get; set; }
-    [Parameter] public bool StartExpanded { get; set; }
-    [Parameter] public TreeSortOrder SortOrder { get; set; }
-    [Parameter] public string? ExpandedSiblingPath { get; set; }
-    [Parameter] public EventCallback<string?> OnExpansionChanged { get; set; }
-    private Entry[]? _children;
-    private string? _expandedChildPath;
-    private TreeSortOrder _childrenSortOrder;
-    private string? _error;
-
-    protected override void OnInitialized()
-    {
-        if (StartExpanded)
-            LoadChildren();
-    }
-
-    protected override void OnParametersSet()
-    {
-        if (OnExpansionChanged.HasDelegate && ExpandedSiblingPath != Item.Path)
-            _children = null;
-
-        if (_children is null || _childrenSortOrder == SortOrder)
-            return;
-
-        _children = Library.SortEntries(_children, SortOrder);
-        _childrenSortOrder = SortOrder;
-    }
-
-    private async Task Toggle()
-    {
-        if (_children is not null)
-        {
-            _children = null;
-            await OnExpansionChanged.InvokeAsync(null);
-            return;
-        }
-
-        LoadChildren();
-        if (_children is not null)
-            await OnExpansionChanged.InvokeAsync(Item.Path);
-    }
-
-    private void SetExpandedChild(string? path) => _expandedChildPath = path;
-
-    private void LoadChildren()
-    {
-        _error = null;
-        try
-        {
-            _children = Library.List(Item.Path, SortOrder);
-            _childrenSortOrder = SortOrder;
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            _error = "This folder could not be read.";
-        }
-    }
-}
