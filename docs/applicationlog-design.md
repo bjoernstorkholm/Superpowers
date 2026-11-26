@@ -10,7 +10,7 @@ ApplicationLog is a local Windows app for browsing job application folders and r
 
 ## Interface
 
-The left pane shows an expandable folder tree. Folders appear before files at each level, with names sorted alphabetically within each group. Each name is prefixed with its last-modified timestamp in the computer’s local time, using the format yyyy-MM-dd HH:mm.
+The left pane shows an expandable folder tree. Folders appear before files at each level. The **Sort by** selector orders each group alphabetically by name or by last-modified time, newest first. Switching the sort preserves expanded folders and the selected file. Each name is prefixed with its last-modified timestamp in the computer’s local time, using the format yyyy-MM-dd HH:mm.
 
 The folder count includes nested subfolders and excludes the configured root and linked folders. Refresh folders rescans the tree and recalculates the count. The root opens again after a refresh.
 

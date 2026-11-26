@@ -2,6 +2,12 @@ namespace Applications;
 
 public sealed record Entry(string Path, string Name, bool Folder, DateTime Modified);
 
+public enum TreeSortOrder
+{
+    Name,
+    DateModified
+}
+
 public sealed class Library(string root)
 {
     private readonly object _textSaveLock = new();
@@ -16,17 +22,23 @@ public sealed class Library(string root)
             attributes.HasFlag(FileAttributes.Directory), File.GetLastWriteTime(fullPath));
     }
 
-    public Entry[] List(string path) =>
-        new DirectoryInfo(Resolve(path))
+    public Entry[] List(string path, TreeSortOrder sortOrder = TreeSortOrder.Name) =>
+        SortEntries(new DirectoryInfo(Resolve(path))
             .EnumerateFileSystemInfos("*", new EnumerationOptions
             {
                 AttributesToSkip = FileAttributes.ReparsePoint
             })
             .Select(item => new Entry(Path.GetRelativePath(Root, item.FullName), item.Name,
-                item is DirectoryInfo, item.LastWriteTime))
-            .OrderByDescending(entry => entry.Folder)
-            .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
-            .ToArray();
+                item is DirectoryInfo, item.LastWriteTime)), sortOrder);
+
+    internal static Entry[] SortEntries(IEnumerable<Entry> entries, TreeSortOrder sortOrder)
+    {
+        var sorted = entries.OrderByDescending(entry => entry.Folder);
+        if (sortOrder == TreeSortOrder.DateModified)
+            sorted = sorted.ThenByDescending(entry => entry.Modified.ToUniversalTime());
+
+        return sorted.ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+    }
 
     public int CountFolders() =>
         Directory.EnumerateDirectories(Resolve("."), "*", new EnumerationOptions

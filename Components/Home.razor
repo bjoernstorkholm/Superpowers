@@ -24,9 +24,16 @@
         <p class="path">@Library.Root</p>
         @if (_root is not null)
         {
+            <label class="sort-control">
+                Sort by
+                <select class="action" @bind="_sortOrder">
+                    <option value="@TreeSortOrder.Name">Name</option>
+                    <option value="@TreeSortOrder.DateModified">Date modified</option>
+                </select>
+            </label>
             <ul class="tree">
                 <TreeEntry @key="_revision" Item="_root" StartExpanded="true"
-                           Selected="@(_selected?.Path)" OnSelect="Select" />
+                           Selected="@(_selected?.Path)" OnSelect="Select" SortOrder="_sortOrder" />
             </ul>
         }
         else
@@ -158,6 +165,7 @@
 @code {
     private Entry? _root;
     private int? _folderCount;
+    private TreeSortOrder _sortOrder = TreeSortOrder.Name;
     private Entry? _selected;
     private Preview? _preview;
     private string? _pdfUrl;

@@ -21,7 +21,8 @@
             <ul>
                 @foreach (var child in _children)
                 {
-                    <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect" />
+                    <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect"
+                               SortOrder="SortOrder" />
                 }
             </ul>
         }
@@ -43,13 +44,24 @@
     [Parameter] public string? Selected { get; set; }
     [Parameter] public EventCallback<Entry> OnSelect { get; set; }
     [Parameter] public bool StartExpanded { get; set; }
+    [Parameter] public TreeSortOrder SortOrder { get; set; }
     private Entry[]? _children;
+    private TreeSortOrder _childrenSortOrder;
     private string? _error;
 
     protected override void OnInitialized()
     {
         if (StartExpanded)
             Toggle();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_children is null || _childrenSortOrder == SortOrder)
+            return;
+
+        _children = Library.SortEntries(_children, SortOrder);
+        _childrenSortOrder = SortOrder;
     }
 
     private void Toggle()
@@ -61,7 +73,11 @@
             return;
         }
 
-        try { _children = Library.List(Item.Path); }
+        try
+        {
+            _children = Library.List(Item.Path, SortOrder);
+            _childrenSortOrder = SortOrder;
+        }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             _error = "This folder could not be read.";
