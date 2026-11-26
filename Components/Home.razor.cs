@@ -69,7 +69,7 @@ public partial class Home : IDisposable
 
         try
         {
-            var updated = Library.Describe(_selected.Path);
+            Entry updated = Library.Describe(_selected.Path);
             if (updated.Folder)
                 _selected = null;
             else
@@ -140,7 +140,7 @@ public partial class Home : IDisposable
 
         _saveStatus = "Saving…";
         _saveDelay?.Cancel();
-        using var delay = new CancellationTokenSource();
+        using CancellationTokenSource delay = new CancellationTokenSource();
         _saveDelay = delay;
         try
         {
@@ -159,34 +159,39 @@ public partial class Home : IDisposable
         _saveDelay = null;
         if (!_draftPending || _textDocument is null || _selected is null)
             return true;
+
         if (_saveConflict)
             return false;
 
         try
         {
-            var saved = Library.SaveText(_selected.Path, _textDocument, _draft);
+            TextDocument? saved = Library.SaveText(_selected.Path, _textDocument, _draft);
             if (saved is null)
             {
                 _saveConflict = true;
                 _saveStatus = "The file changed on disk. Copy your draft before reloading.";
+
                 return false;
             }
 
             _textDocument = saved;
             _draftPending = false;
             _saveStatus = "Saved";
+
             return true;
         }
         catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
         {
             _saveConflict = true;
             _saveStatus = "The file was removed. Copy your draft before reloading.";
+
             return false;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
         {
             Logger.LogWarning(e, "Unable to save the selected text file.");
             _saveStatus = "Could not save. Your draft is still here. Edit again or select a file to retry.";
+
             return false;
         }
     }
@@ -205,13 +210,14 @@ public partial class Home : IDisposable
 
     private static string ColumnName(int column)
     {
-        var name = "";
+        string name = "";
         while (column > 0)
         {
             column--;
             name = (char)('A' + column % 26) + name;
             column /= 26;
         }
+
         return name;
     }
 }

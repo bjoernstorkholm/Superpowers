@@ -1,5 +1,5 @@
 <p class="word-paragraph">
-    @foreach (var run in Value.Runs)
+    @foreach (WordRun run in Value.Runs)
     {
         <span class="@(run.Bold ? "bold" : "") @(run.Italic ? "italic" : "")">@run.Text</span>
     }

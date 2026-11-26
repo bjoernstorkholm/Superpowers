@@ -11,11 +11,11 @@ public sealed class TreeEntryTests
     [Fact]
     public void OpeningAnotherTopLevelFolderCollapsesThePreviousOne()
     {
-        using var files = new TestDirectory();
+        using TestDirectory files = new TestDirectory();
         files.CreateText("Alpha/first.txt", "First");
         files.CreateText("Beta/second.txt", "Second");
-        using var context = CreateContext(files, out var library);
-        var tree = RenderRoot(context, library);
+        using BunitContext context = CreateContext(files, out Library library);
+        IRenderedComponent<TreeEntry> tree = RenderRoot(context, library);
 
         FindButton(tree, "Alpha").Click();
         Assert.Equal("true", FindButton(tree, "Alpha").GetAttribute("aria-expanded"));
@@ -35,11 +35,11 @@ public sealed class TreeEntryTests
     [Fact]
     public void NestedSiblingFoldersCanBeExpandedTogether()
     {
-        using var files = new TestDirectory();
+        using TestDirectory files = new TestDirectory();
         files.CreateText("Alpha/One/first.txt", "First");
         files.CreateText("Alpha/Two/second.txt", "Second");
-        using var context = CreateContext(files, out var library);
-        var tree = RenderRoot(context, library);
+        using BunitContext context = CreateContext(files, out Library library);
+        IRenderedComponent<TreeEntry> tree = RenderRoot(context, library);
 
         FindButton(tree, "Alpha").Click();
         FindButton(tree, "One").Click();
@@ -54,15 +54,15 @@ public sealed class TreeEntryTests
     [Fact]
     public void SwitchingSortPreservesExpandedFolderAndSelectedFile()
     {
-        using var files = new TestDirectory();
-        var first = files.CreateText("Alpha/apple.txt", "Selected");
-        var second = files.CreateText("Alpha/zebra.txt", "Newer");
+        using TestDirectory files = new TestDirectory();
+        string first = files.CreateText("Alpha/apple.txt", "Selected");
+        string second = files.CreateText("Alpha/zebra.txt", "Newer");
         files.CreateText("Alpha/log.txt", "Pinned");
         File.SetLastWriteTimeUtc(first, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         File.SetLastWriteTimeUtc(second, new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc));
-        using var context = CreateContext(files, out var library);
-        var selectedPath = Path.Combine("Alpha", "apple.txt");
-        var tree = context.Render<TreeEntry>(parameters => parameters
+        using BunitContext context = CreateContext(files, out Library library);
+        string selectedPath = Path.Combine("Alpha", "apple.txt");
+        IRenderedComponent<TreeEntry> tree = context.Render<TreeEntry>(parameters => parameters
             .Add(p => p.Item, library.Describe("."))
             .Add(p => p.Selected, selectedPath)
             .Add(p => p.StartExpanded, true));
@@ -80,11 +80,11 @@ public sealed class TreeEntryTests
     [Fact]
     public void SelectingAFilePassesItsRelativePathToTheParent()
     {
-        using var files = new TestDirectory();
+        using TestDirectory files = new TestDirectory();
         files.CreateText("Alpha/log.txt", "Log");
-        using var context = CreateContext(files, out var library);
+        using BunitContext context = CreateContext(files, out Library library);
         Entry? selected = null;
-        var tree = context.Render<TreeEntry>(parameters => parameters
+        IRenderedComponent<TreeEntry> tree = context.Render<TreeEntry>(parameters => parameters
             .Add(p => p.Item, library.Describe("."))
             .Add(p => p.StartExpanded, true)
             .Add(p => p.OnSelect, entry => { selected = entry; }));
@@ -99,9 +99,10 @@ public sealed class TreeEntryTests
 
     private static BunitContext CreateContext(TestDirectory files, out Library library)
     {
-        var context = new BunitContext();
+        BunitContext context = new BunitContext();
         library = new Library(files.Path);
         context.Services.AddSingleton(library);
+
         return context;
     }
 

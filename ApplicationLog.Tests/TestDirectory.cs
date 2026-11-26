@@ -8,16 +8,18 @@ internal sealed class TestDirectory : IDisposable
 
     public string CreateFolder(string relativePath)
     {
-        var path = System.IO.Path.Combine(Path, relativePath);
+        string path = System.IO.Path.Combine(Path, relativePath);
         Directory.CreateDirectory(path);
+
         return path;
     }
 
     public string CreateText(string relativePath, string text)
     {
-        var path = System.IO.Path.Combine(Path, relativePath);
+        string path = System.IO.Path.Combine(Path, relativePath);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
         File.WriteAllText(path, text);
+
         return path;
     }
 

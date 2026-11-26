@@ -16,8 +16,9 @@ public sealed class Library(string root)
 
     public Entry Describe(string path)
     {
-        var fullPath = Resolve(path);
-        var attributes = File.GetAttributes(fullPath);
+        string fullPath = Resolve(path);
+        FileAttributes attributes = File.GetAttributes(fullPath);
+
         return new Entry(path, Path.GetFileName(Path.TrimEndingDirectorySeparator(fullPath)),
             attributes.HasFlag(FileAttributes.Directory), File.GetLastWriteTime(fullPath));
     }
@@ -33,7 +34,7 @@ public sealed class Library(string root)
 
     internal static Entry[] SortEntries(IEnumerable<Entry> entries, TreeSortOrder sortOrder)
     {
-        var sorted = entries
+        IOrderedEnumerable<Entry> sorted = entries
             .OrderByDescending(entry => !entry.Folder && string.Equals(entry.Name, "log.txt", StringComparison.OrdinalIgnoreCase))
             .ThenByDescending(entry => entry.Folder);
         if (sortOrder == TreeSortOrder.DateModified)
@@ -55,7 +56,8 @@ public sealed class Library(string root)
     internal TextDocument? ReadText(string path)
     {
         EnsureTextFile(path);
-        using var stream = Open(path);
+        using FileStream stream = Open(path);
+
         return TextDocument.Read(stream);
     }
 
@@ -65,12 +67,12 @@ public sealed class Library(string root)
         if (draft.Length > TextDocument.MaxCharacters)
             throw new ArgumentException("The draft exceeds the text editor limit.");
 
-        var bytes = original.Encode(draft);
+        byte[] bytes = original.Encode(draft);
         lock (_textSaveLock)
         {
-            var fullPath = Resolve(path);
-            var temporaryPath = Path.Combine(Path.GetDirectoryName(fullPath)!, $".{Guid.NewGuid():N}.tmp");
-            var pending = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write);
+            string fullPath = Resolve(path);
+            string temporaryPath = Path.Combine(Path.GetDirectoryName(fullPath)!, $".{Guid.NewGuid():N}.tmp");
+            FileStream pending = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write);
             try
             {
                 using (pending)
@@ -80,12 +82,13 @@ public sealed class Library(string root)
                 }
 
                 byte[]? currentBytes;
-                using (var current = Open(path))
+                using (FileStream current = Open(path))
                     currentBytes = TextDocument.ReadBytes(current);
                 if (currentBytes is null || !currentBytes.AsSpan().SequenceEqual(original.Version))
                     return null;
 
                 File.Replace(temporaryPath, fullPath, destinationBackupFileName: null);
+
                 return original with { Version = bytes };
             }
             finally
@@ -106,16 +109,16 @@ public sealed class Library(string root)
         if (Path.IsPathRooted(path) || path.Contains(':'))
             throw new ArgumentException("Invalid relative path.");
 
-        var fullPath = Path.GetFullPath(path, Root);
-        var relative = Path.GetRelativePath(Root, fullPath);
+        string fullPath = Path.GetFullPath(path, Root);
+        string relative = Path.GetRelativePath(Root, fullPath);
         if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar) || Path.IsPathRooted(relative))
             throw new ArgumentException("Path is outside the applications folder.");
 
-        var current = Root;
+        string current = Root;
         CheckLink(current);
         if (relative != ".")
         {
-            foreach (var part in relative.Split(Path.DirectorySeparatorChar))
+            foreach (string part in relative.Split(Path.DirectorySeparatorChar))
             {
                 current = Path.Combine(current, part);
                 CheckLink(current);

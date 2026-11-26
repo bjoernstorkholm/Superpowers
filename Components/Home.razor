@@ -77,7 +77,7 @@
             else if (_preview?.Word is { } word)
             {
                 <article class="paper">
-                    @foreach (var block in word)
+                    @foreach (WordBlock block in word)
                     {
                         if (block is WordParagraph paragraph)
                         {
@@ -86,13 +86,13 @@
                         else if (block is WordTable table)
                         {
                             <table><tbody>
-                                @foreach (var row in table.Rows)
+                                @foreach (WordParagraph[][] row in table.Rows)
                                 {
                                     <tr>
-                                        @foreach (var cell in row)
+                                        @foreach (WordParagraph[] cell in row)
                                         {
                                             <td>
-                                                @foreach (var item in cell)
+                                                @foreach (WordParagraph item in cell)
                                                 {
                                                     <Paragraph Value="item" />
                                                 }
@@ -108,14 +108,14 @@
             else if (_preview?.Sheets is { Length: > 0 } sheets)
             {
                 <div class="sheet-picker" role="group" aria-label="Worksheets">
-                    @for (var index = 0; index < sheets.Length; index++)
+                    @for (int index = 0; index < sheets.Length; index++)
                     {
-                        var sheetIndex = index;
+                        int sheetIndex = index;
                         <button class="action" aria-pressed="@(_sheet == sheetIndex ? "true" : "false")"
                                 @onclick="() => _sheet = sheetIndex">@sheets[index].Name</button>
                     }
                 </div>
-                var sheet = sheets[_sheet];
+                Sheet sheet = sheets[_sheet];
                 @if (sheet.Truncated)
                 {
                     <p class="notice">Showing up to 200 rows and 40 columns.</p>
@@ -129,17 +129,17 @@
                     <div class="grid-scroll" tabindex="0" aria-label="Worksheet @sheet.Name">
                         <table class="grid">
                             <thead><tr><td></td>
-                                @for (var column = 0; column < sheet.Cells[0].Length; column++)
+                                @for (int column = 0; column < sheet.Cells[0].Length; column++)
                                 {
                                     <th scope="col">@ColumnName(sheet.FirstColumn + column)</th>
                                 }
                             </tr></thead>
                             <tbody>
-                                @for (var row = 0; row < sheet.Cells.Length; row++)
+                                @for (int row = 0; row < sheet.Cells.Length; row++)
                                 {
                                     <tr>
                                         <th scope="row">@(sheet.FirstRow + row)</th>
-                                        @foreach (var cell in sheet.Cells[row])
+                                        @foreach (string cell in sheet.Cells[row])
                                         {
                                             <td>@cell</td>
                                         }

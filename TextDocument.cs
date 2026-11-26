@@ -18,16 +18,17 @@ internal sealed record TextDocument(string Text, Encoding Encoding, byte[] Pream
 
     public static TextDocument? Read(Stream stream)
     {
-        var bytes = ReadBytes(stream);
+        byte[]? bytes = ReadBytes(stream);
         if (bytes is null)
             return null;
 
-        var encoding = Encodings.FirstOrDefault(candidate => bytes.AsSpan().StartsWith(candidate.Preamble))
+        Encoding encoding = Encodings.FirstOrDefault(candidate => bytes.AsSpan().StartsWith(candidate.Preamble))
             ?? new UTF8Encoding(false, true);
-        var preamble = encoding.GetPreamble();
+        byte[] preamble = encoding.GetPreamble();
         try
         {
-            var text = encoding.GetString(bytes, preamble.Length, bytes.Length - preamble.Length);
+            string text = encoding.GetString(bytes, preamble.Length, bytes.Length - preamble.Length);
+
             return text.Length <= MaxCharacters && !text.Contains('\0')
                 ? new TextDocument(text, encoding, preamble, bytes)
                 : null;
@@ -40,13 +41,14 @@ internal sealed record TextDocument(string Text, Encoding Encoding, byte[] Pream
 
     public byte[] Encode(string draft)
     {
-        var withoutCrLf = Text.Replace("\r\n", "", StringComparison.Ordinal);
+        string withoutCrLf = Text.Replace("\r\n", "", StringComparison.Ordinal);
         if (Text.Contains("\r\n", StringComparison.Ordinal) && !withoutCrLf.Contains('\n') && !withoutCrLf.Contains('\r'))
             draft = draft.Replace("\n", "\r\n", StringComparison.Ordinal);
         else if (Text.Contains('\r') && !Text.Contains('\n'))
             draft = draft.Replace("\n", "\r", StringComparison.Ordinal);
 
-        var content = Encoding.GetBytes(draft);
+        byte[] content = Encoding.GetBytes(draft);
+
         return Preamble.Length == 0 ? content : [.. Preamble, .. content];
     }
 
@@ -55,8 +57,9 @@ internal sealed record TextDocument(string Text, Encoding Encoding, byte[] Pream
         if (stream.Length > MaxBytes)
             return null;
 
-        var bytes = new byte[stream.Length];
+        byte[] bytes = new byte[stream.Length];
         stream.ReadExactly(bytes);
+
         return stream.ReadByte() == -1 ? bytes : null;
     }
 }

@@ -17,7 +17,7 @@
         @if (_children is { Length: > 0 })
         {
             <ul>
-                @foreach (var child in _children)
+                @foreach (Entry child in _children)
                 {
                     <TreeEntry @key="child.Path" Item="child" Selected="@Selected" OnSelect="OnSelect"
                                SortOrder="SortOrder" ExpandedSiblingPath="@_expandedChildPath"

@@ -21,7 +21,7 @@ public sealed class PreviewReaderTests : IDisposable
         const string text = "Første linje\r\n第二行\n<last>";
         _files.CreateText("notes.TXT", text);
 
-        var preview = Read("notes.TXT");
+        Preview preview = Read("notes.TXT");
 
         Assert.Equal(text, preview.Text);
         Assert.Null(preview.Word);
@@ -37,8 +37,8 @@ public sealed class PreviewReaderTests : IDisposable
     public void Read_TextPreviewDetectsUnicodeByteOrderMarks(int codePage)
     {
         const string text = "Æøå, 日本語, 🌱";
-        var encoding = Encoding.GetEncoding(codePage);
-        var path = _files.CreateText("notes.txt", "");
+        Encoding encoding = Encoding.GetEncoding(codePage);
+        string path = _files.CreateText("notes.txt", "");
         File.WriteAllBytes(path, [.. encoding.GetPreamble(), .. encoding.GetBytes(text)]);
 
         Assert.Equal(text, Read("notes.txt").Text);
@@ -50,9 +50,9 @@ public sealed class PreviewReaderTests : IDisposable
     [InlineData(200_001, true)]
     public void Read_TextPreviewOnlyReportsTruncationBeyondTheLimit(int length, bool truncated)
     {
-        var text = new string('å', length);
+        string text = new string('å', length);
         _files.CreateText("notes.txt", text);
-        var expected = truncated ? text[..200_000] + "\n\n[Preview truncated]" : text;
+        string expected = truncated ? text[..200_000] + "\n\n[Preview truncated]" : text;
 
         Assert.Equal(expected, Read("notes.txt").Text);
     }
@@ -72,7 +72,7 @@ public sealed class PreviewReaderTests : IDisposable
             <w:p/>
             """);
 
-        var preview = Read("document.docx");
+        Preview preview = Read("document.docx");
 
         Assert.Null(preview.Text);
         Assert.Null(preview.Sheets);
@@ -141,15 +141,15 @@ public sealed class PreviewReaderTests : IDisposable
     [Fact]
     public void Read_WorkbookPreviewPreservesSheetOrderAndSparseCoordinates()
     {
-        using var workbook = new XLWorkbook();
-        var summary = workbook.AddWorksheet("Summary");
+        using XLWorkbook workbook = new XLWorkbook();
+        IXLWorksheet summary = workbook.AddWorksheet("Summary");
         summary.Cell("C4").Value = "Start";
         summary.Cell("E6").Value = "End";
         workbook.AddWorksheet("Empty");
         workbook.AddWorksheet("Other").Cell("B3").Value = "Other data";
         SaveWorkbook(workbook);
 
-        var preview = Read("workbook.xlsx");
+        Preview preview = Read("workbook.xlsx");
 
         Assert.Null(preview.Text);
         Assert.Null(preview.Word);
@@ -182,14 +182,14 @@ public sealed class PreviewReaderTests : IDisposable
     [Fact]
     public void Read_WorkbookPreviewUsesCellNumberFormatAndSavedFormulaValue()
     {
-        using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Numbers");
+        using XLWorkbook workbook = new XLWorkbook();
+        IXLWorksheet sheet = workbook.AddWorksheet("Numbers");
         sheet.Cell("D7").Value = 12;
         sheet.Cell("D7").Style.NumberFormat.Format = "0000";
         sheet.Cell("E7").FormulaA1 = "D7*2";
         SaveWorkbook(workbook, evaluateFormulas: true);
 
-        var previewSheet = Assert.Single(Read("workbook.xlsx").Sheets!);
+        Sheet previewSheet = Assert.Single(Read("workbook.xlsx").Sheets!);
 
         Assert.Equal(["0012", "24"], Assert.Single(previewSheet.Cells));
     }
@@ -200,8 +200,8 @@ public sealed class PreviewReaderTests : IDisposable
     [InlineData(200, 41, true)]
     public void Read_WorkbookPreviewBoundsEachDimensionFromTheFirstUsedCell(int rows, int columns, bool truncated)
     {
-        using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Large");
+        using XLWorkbook workbook = new XLWorkbook();
+        IXLWorksheet sheet = workbook.AddWorksheet("Large");
         const int firstRow = 3;
         const int firstColumn = 5;
         sheet.Cell(firstRow, firstColumn).Value = "First";
@@ -210,7 +210,7 @@ public sealed class PreviewReaderTests : IDisposable
             sheet.Cell(firstRow + rows - 1, firstColumn + columns - 1).Value = "Outside the preview";
         SaveWorkbook(workbook);
 
-        var previewSheet = Assert.Single(Read("workbook.xlsx").Sheets!);
+        Sheet previewSheet = Assert.Single(Read("workbook.xlsx").Sheets!);
 
         Assert.Equal((firstRow, firstColumn), (previewSheet.FirstRow, previewSheet.FirstColumn));
         Assert.Equal(truncated, previewSheet.Truncated);
@@ -234,7 +234,8 @@ public sealed class PreviewReaderTests : IDisposable
 
     private Preview Read(string fileName)
     {
-        var library = new Library(_files.Path);
+        Library library = new Library(_files.Path);
+
         return PreviewReader.Read(library, library.Describe(fileName));
     }
 
@@ -243,8 +244,8 @@ public sealed class PreviewReaderTests : IDisposable
 
     private void WriteWordPart(string part, string xml)
     {
-        using var archive = ZipFile.Open(Path.Combine(_files.Path, "document.docx"), ZipArchiveMode.Create);
-        using var writer = new StreamWriter(archive.CreateEntry(part).Open());
+        using ZipArchive archive = ZipFile.Open(Path.Combine(_files.Path, "document.docx"), ZipArchiveMode.Create);
+        using StreamWriter writer = new StreamWriter(archive.CreateEntry(part).Open());
         writer.Write(xml);
     }
 

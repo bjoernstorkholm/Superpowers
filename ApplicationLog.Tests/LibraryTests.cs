@@ -72,16 +72,16 @@ public sealed class LibraryTests
     [Fact]
     public void List_UsesRequestedSortAndReturnsOnlyDirectChildrenWithRootRelativePaths()
     {
-        using var directory = new TestDirectory();
+        using TestDirectory directory = new TestDirectory();
         directory.CreateFolder(Path.Combine("Client", "Interview"));
         directory.CreateText(Path.Combine("Client", "Interview", "followup.txt"), "follow up");
-        var older = directory.CreateText(Path.Combine("Client", "alpha.txt"), "first");
-        var newer = directory.CreateText(Path.Combine("Client", "zulu.txt"), "second");
+        string older = directory.CreateText(Path.Combine("Client", "alpha.txt"), "first");
+        string newer = directory.CreateText(Path.Combine("Client", "zulu.txt"), "second");
         File.SetLastWriteTimeUtc(older, Earlier);
         File.SetLastWriteTimeUtc(newer, Later);
-        var library = new Library(directory.Path);
+        Library library = new Library(directory.Path);
 
-        var entries = library.List("Client", TreeSortOrder.DateModified);
+        Entry[] entries = library.List("Client", TreeSortOrder.DateModified);
 
         Assert.Collection(entries,
             child =>
@@ -102,9 +102,9 @@ public sealed class LibraryTests
     [Fact]
     public void List_UsesNameOrderWhenNoSortIsSpecified()
     {
-        using var directory = new TestDirectory();
-        var newer = directory.CreateText("zulu.txt", "");
-        var older = directory.CreateText("alpha.txt", "");
+        using TestDirectory directory = new TestDirectory();
+        string newer = directory.CreateText("zulu.txt", "");
+        string older = directory.CreateText("alpha.txt", "");
         File.SetLastWriteTimeUtc(newer, Later);
         File.SetLastWriteTimeUtc(older, Earlier);
 
@@ -115,7 +115,7 @@ public sealed class LibraryTests
     [Fact]
     public void CountFolders_CountsNestedAndEmptyFoldersButExcludesRootAndFiles()
     {
-        using var directory = new TestDirectory();
+        using TestDirectory directory = new TestDirectory();
         directory.CreateFolder(Path.Combine("Client", "Interview"));
         directory.CreateFolder("Empty");
         directory.CreateText(Path.Combine("Client", "log.txt"), "");
@@ -127,7 +127,7 @@ public sealed class LibraryTests
     [Fact]
     public void CountFolders_ReturnsZeroWhenRootContainsOnlyFiles()
     {
-        using var directory = new TestDirectory();
+        using TestDirectory directory = new TestDirectory();
         directory.CreateText("summary.txt", "");
 
         Assert.Equal(0, new Library(directory.Path).CountFolders());
@@ -136,13 +136,13 @@ public sealed class LibraryTests
     [Fact]
     public void Describe_ReturnsOriginalRelativePathAndFilesystemMetadata()
     {
-        using var directory = new TestDirectory();
-        var relative = Path.Combine("Client", "Summary.TXT");
-        var fullPath = directory.CreateText(relative, "");
+        using TestDirectory directory = new TestDirectory();
+        string relative = Path.Combine("Client", "Summary.TXT");
+        string fullPath = directory.CreateText(relative, "");
         File.SetLastWriteTimeUtc(fullPath, Earlier);
-        var library = new Library(directory.Path);
+        Library library = new Library(directory.Path);
 
-        var entry = library.Describe(relative);
+        Entry entry = library.Describe(relative);
 
         Assert.Equal(new Entry(relative, "Summary.TXT", false, File.GetLastWriteTime(fullPath)), entry);
         Assert.True(library.Describe(".").Folder);
@@ -151,13 +151,13 @@ public sealed class LibraryTests
     [Fact]
     public void Open_ProvidesReadOnlyAccessToRootRelativeFile()
     {
-        using var directory = new TestDirectory();
-        var relative = Path.Combine("Client", "log.txt");
+        using TestDirectory directory = new TestDirectory();
+        string relative = Path.Combine("Client", "log.txt");
         directory.CreateText(relative, "First interview");
-        var library = new Library(directory.Path);
+        Library library = new Library(directory.Path);
 
-        using var stream = library.Open(relative);
-        using var reader = new StreamReader(stream);
+        using FileStream stream = library.Open(relative);
+        using StreamReader reader = new StreamReader(stream);
 
         Assert.True(stream.CanRead);
         Assert.False(stream.CanWrite);
@@ -167,10 +167,10 @@ public sealed class LibraryTests
     [Fact]
     public void Open_RejectsPathsOutsideTheLibraryAndAbsolutePaths()
     {
-        using var directory = new TestDirectory();
-        var root = directory.CreateFolder("Applications");
-        var outside = directory.CreateText("outside.txt", "Outside the library");
-        var library = new Library(root);
+        using TestDirectory directory = new TestDirectory();
+        string root = directory.CreateFolder("Applications");
+        string outside = directory.CreateText("outside.txt", "Outside the library");
+        Library library = new Library(root);
 
         Assert.Throws<ArgumentException>(() => library.Open(Path.GetRelativePath(root, outside)));
         Assert.Throws<ArgumentException>(() => library.Open(outside));
@@ -183,12 +183,12 @@ public sealed class LibraryTests
         if (OperatingSystem.IsWindows())
             return;
 
-        using var directory = new TestDirectory();
-        var root = directory.CreateFolder("Applications");
-        var target = directory.CreateFolder("LinkedTarget");
+        using TestDirectory directory = new TestDirectory();
+        string root = directory.CreateFolder("Applications");
+        string target = directory.CreateFolder("LinkedTarget");
         directory.CreateText(Path.Combine("LinkedTarget", "log.txt"), "outside the library");
         Directory.CreateSymbolicLink(Path.Combine(root, "Shortcut"), target);
-        var library = new Library(root);
+        Library library = new Library(root);
 
         Assert.Empty(library.List("."));
         Assert.Equal(0, library.CountFolders());
