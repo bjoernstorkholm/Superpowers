@@ -7,8 +7,6 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using Applications;
-using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.Wpf;
 
 namespace ApplicationLog.Wpf;
 
@@ -19,7 +17,7 @@ internal static class DocumentPreviews
         switch (Path.GetExtension(entry.Name).ToLowerInvariant())
         {
             case ".pdf":
-                return CreatePdf(library, entry);
+                return new PdfPreviewHost(library, entry);
             case ".docx":
                 return CreateWord(PreviewReader.Read(library, entry).Word!);
             case ".xlsx":
@@ -34,95 +32,9 @@ internal static class DocumentPreviews
         if (preview is not PdfPreviewHost host)
             return false;
 
-        host.ZoomFactor = factor;
-        if (host.Children.OfType<WebView2>().FirstOrDefault() is WebView2 viewer)
-            viewer.ZoomFactor = factor;
+        host.SetZoom(factor);
 
         return true;
-    }
-
-    private static FrameworkElement CreatePdf(Library library, Entry entry)
-    {
-        using (library.Open(entry.Path)) { }
-
-        Uri source = new(Path.Combine(library.Root, entry.Path));
-        PdfPreviewHost host = new();
-        WebView2? activeViewer = null;
-        host.Loaded += async (_, _) =>
-        {
-            if (activeViewer is not null)
-                return;
-
-            TextBlock status = Notice("Loading PDF…");
-            WebView2 viewer = new() { Visibility = Visibility.Hidden, ZoomFactor = host.ZoomFactor };
-            activeViewer = viewer;
-            host.Children.Clear();
-            host.Children.Add(status);
-            host.Children.Add(viewer);
-            try
-            {
-                string dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "ApplicationLog.Wpf", "WebView2");
-                CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(userDataFolder: dataFolder);
-                if (!ReferenceEquals(activeViewer, viewer))
-                    return;
-
-                await viewer.EnsureCoreWebView2Async(environment);
-                if (!ReferenceEquals(activeViewer, viewer))
-                    return;
-
-                CoreWebView2 browser = viewer.CoreWebView2;
-                browser.Settings.AreDevToolsEnabled = false;
-                browser.Settings.AreDefaultContextMenusEnabled = false;
-                browser.Settings.AreHostObjectsAllowed = false;
-                browser.Settings.IsWebMessageEnabled = false;
-                browser.Settings.IsScriptEnabled = false;
-                browser.Settings.IsStatusBarEnabled = false;
-                browser.Settings.HiddenPdfToolbarItems = CoreWebView2PdfToolbarItems.Save |
-                    CoreWebView2PdfToolbarItems.SaveAs | CoreWebView2PdfToolbarItems.Print;
-                browser.NavigationStarting += (_, args) =>
-                {
-                    args.Cancel = !Uri.TryCreate(args.Uri, UriKind.Absolute, out Uri? target) ||
-                        !target.IsFile || !string.Equals(target.LocalPath, source.LocalPath, StringComparison.Ordinal);
-                };
-                browser.FrameNavigationStarting += (_, args) => args.Cancel = true;
-                browser.NewWindowRequested += (_, args) => args.Handled = true;
-                browser.PermissionRequested += (_, args) => args.State = CoreWebView2PermissionState.Deny;
-                browser.DownloadStarting += (_, args) => args.Cancel = true;
-                browser.NavigationCompleted += (_, args) =>
-                {
-                    if (args.IsSuccess)
-                    {
-                        viewer.Visibility = Visibility.Visible;
-                        status.Visibility = Visibility.Collapsed;
-                    }
-                    else if (args.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
-                    {
-                        viewer.Visibility = Visibility.Hidden;
-                        status.Visibility = Visibility.Visible;
-                        status.Text = "This PDF could not be previewed.";
-                    }
-                };
-                viewer.Source = source;
-            }
-            catch (WebView2RuntimeNotFoundException)
-            {
-                status.Text = "PDF preview requires the Microsoft Edge WebView2 Runtime.";
-            }
-            catch (Exception)
-            {
-                status.Text = "This PDF could not be previewed.";
-            }
-        };
-        host.Unloaded += (_, _) =>
-        {
-            WebView2? viewer = activeViewer;
-            activeViewer = null;
-            viewer?.Dispose();
-            host.Children.Clear();
-        };
-
-        return host;
     }
 
     private static FlowDocumentScrollViewer CreateWord(WordBlock[] blocks)
@@ -195,6 +107,19 @@ internal static class DocumentPreviews
 
         return table;
     }
+
+    internal static string? GetWorksheet(FrameworkElement? preview) =>
+        FindWorksheetPicker(preview)?.SelectedItem as string;
+
+    internal static void RestoreWorksheet(FrameworkElement? preview, string? worksheet)
+    {
+        ComboBox? picker = FindWorksheetPicker(preview);
+        if (worksheet is not null && picker?.Items.Contains(worksheet) == true)
+            picker.SelectedItem = worksheet;
+    }
+
+    private static ComboBox? FindWorksheetPicker(FrameworkElement? preview) =>
+        preview is DockPanel panel && panel.Children.Count > 0 ? panel.Children[0] as ComboBox : null;
 
     private static FrameworkElement CreateWorkbook(Sheet[] sheets)
     {
@@ -302,9 +227,4 @@ internal static class DocumentPreviews
         Margin = new Thickness(12),
         VerticalAlignment = VerticalAlignment.Top
     };
-}
-
-internal sealed class PdfPreviewHost : Grid
-{
-    public double ZoomFactor { get; set; } = 1;
 }

@@ -10,6 +10,7 @@
   <ItemGroup>
     <Resource Include="Assets/ApplicationLog.ico" />
     <Using Include="System.IO" />
+    <None Update="PdfViewer/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3124.44" />

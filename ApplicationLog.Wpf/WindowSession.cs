@@ -10,6 +10,20 @@ internal sealed class WindowSession
     public int? PreviewZoom { get; set; }
     public string? TreePath { get; set; }
     public string? PreviewPath { get; set; }
+    public int SortIndex { get; set; }
+    public string[]? ExpandedFolders { get; set; }
+    public double? TreeHorizontalOffset { get; set; }
+    public double? TreeVerticalOffset { get; set; }
+    public double? PreviewHorizontalOffset { get; set; }
+    public double? PreviewVerticalOffset { get; set; }
+    public string? Worksheet { get; set; }
+    public string? PdfPosition { get; set; }
+    public double? WindowLeft { get; set; }
+    public double? WindowTop { get; set; }
+    public double? WindowWidth { get; set; }
+    public double? WindowHeight { get; set; }
+    public bool Maximized { get; set; }
+    public double? TreeWidthShare { get; set; }
 
     public static string? GetPath(string root)
     {

@@ -1,0 +1,4 @@
+PDF.js 6.5.438 by Mozilla and contributors, licensed under Apache-2.0.
+Source: https://github.com/mozilla/pdf.js/tree/v6.5.438
+Distribution: https://github.com/mozilla/pdf.js/releases/tag/v6.5.438
+ApplicationLog changes: local-only viewer CSP, local session bridge and toolbar styling.

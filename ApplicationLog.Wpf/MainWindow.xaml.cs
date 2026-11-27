@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Applications;
 
 namespace ApplicationLog.Wpf;
@@ -41,10 +42,14 @@ public partial class MainWindow : Window
         _emptyPreview = PreviewPane.Content;
         RootPath.Text = library.Root;
         WindowSession session = WindowSession.Load(_sessionPath);
+        RestoreWindowLayout(session);
+        SortOrder.SelectedIndex = session.SortIndex == 1 ? 1 : 0;
         SetTreeZoom(session.TreeZoom ?? DefaultZoom);
         _previewZoom = Math.Clamp(session.PreviewZoom ?? DefaultZoom, MinimumZoom, MaximumZoom);
         RefreshTree();
         RestoreSession(session);
+        Loaded += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
+            () => RestoreScrollPositions(session));
     }
 
     private string? SelectedTreePath => FileTree.SelectedItem is TreeViewItem { Tag: Entry entry }
@@ -65,12 +70,23 @@ public partial class MainWindow : Window
                 {
                     Entry entry = _library.Describe(previewPath);
                     if (!entry.Folder)
+                    {
                         ShowPreview(entry);
+                        DocumentPreviews.RestoreWorksheet(PreviewPane.Content as FrameworkElement, session.Worksheet);
+                        if (PreviewPane.Content is PdfPreviewHost pdf)
+                            pdf.RestorePosition(session.PdfPosition);
+                    }
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
                 {
                     // The previous document may have moved or been removed.
                 }
+            }
+
+            if (session.ExpandedFolders is string[] expandedFolders)
+            {
+                _root.IsExpanded = expandedFolders.Contains(".", StringComparer.Ordinal);
+                RestoreExpandedFolders(_root, expandedFolders.ToHashSet(StringComparer.Ordinal));
             }
 
             if (session.TreePath is string treePath)
@@ -108,7 +124,93 @@ public partial class MainWindow : Window
         }
 
         item.IsSelected = true;
-        item.BringIntoView();
+    }
+
+    private void RestoreExpandedFolders(TreeViewItem item, HashSet<string> expanded)
+    {
+        if (item.Tag is not Entry { Folder: true } folder || !expanded.Contains(folder.Path))
+            return;
+
+        if (!item.IsExpanded)
+        {
+            LoadChildren(item, folder);
+            item.IsExpanded = true;
+        }
+
+        foreach (TreeViewItem child in item.Items.OfType<TreeViewItem>())
+            RestoreExpandedFolders(child, expanded);
+    }
+
+    private static IEnumerable<string> ExpandedFolders(TreeViewItem item)
+    {
+        if (!item.IsExpanded || item.Tag is not Entry { Folder: true } folder)
+            yield break;
+
+        yield return folder.Path;
+        foreach (TreeViewItem child in item.Items.OfType<TreeViewItem>())
+        foreach (string path in ExpandedFolders(child))
+            yield return path;
+    }
+
+    private void RestoreWindowLayout(WindowSession session)
+    {
+        if (session.TreeWidthShare is double share && share is > 0 and < 1)
+        {
+            TreeColumn.Width = new GridLength(share, GridUnitType.Star);
+            PreviewColumn.Width = new GridLength(1 - share, GridUnitType.Star);
+        }
+
+        if (session.WindowWidth is double width && double.IsFinite(width) && width >= MinWidth &&
+            session.WindowHeight is double height && double.IsFinite(height) && height >= MinHeight)
+        {
+            Width = Math.Min(width, Math.Max(MinWidth, SystemParameters.VirtualScreenWidth));
+            Height = Math.Min(height, Math.Max(MinHeight, SystemParameters.VirtualScreenHeight));
+        }
+
+        if (session.WindowLeft is double left && double.IsFinite(left) &&
+            session.WindowTop is double top && double.IsFinite(top))
+        {
+            Left = Math.Clamp(left, SystemParameters.VirtualScreenLeft,
+                SystemParameters.VirtualScreenLeft + Math.Max(0, SystemParameters.VirtualScreenWidth - Width));
+            Top = Math.Clamp(top, SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenTop + Math.Max(0, SystemParameters.VirtualScreenHeight - Height));
+        }
+
+        if (session.Maximized)
+            WindowState = WindowState.Maximized;
+    }
+
+    private void RestoreScrollPositions(WindowSession session)
+    {
+        RestoreScroll(FindScrollViewer(FileTree), session.TreeHorizontalOffset, session.TreeVerticalOffset);
+        if (session.PreviewPath == _selected?.Path)
+            RestoreScroll(FindScrollViewer(PreviewPane), session.PreviewHorizontalOffset, session.PreviewVerticalOffset);
+    }
+
+    private static void RestoreScroll(ScrollViewer? viewer, double? horizontal, double? vertical)
+    {
+        if (viewer is null)
+            return;
+
+        if (horizontal is double x && double.IsFinite(x) && x >= 0)
+            viewer.ScrollToHorizontalOffset(x);
+        if (vertical is double y && double.IsFinite(y) && y >= 0)
+            viewer.ScrollToVerticalOffset(y);
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject parent)
+    {
+        if (parent is ScrollViewer viewer)
+            return viewer;
+
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            ScrollViewer? child = FindScrollViewer(VisualTreeHelper.GetChild(parent, index));
+            if (child is not null)
+                return child;
+        }
+
+        return null;
     }
 
     private TreeSortOrder CurrentSort => SortOrder.SelectedIndex == 1
@@ -497,19 +599,45 @@ public partial class MainWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
+        if (e.Cancel)
+            return;
+
+        e.Cancel = !SaveDraft();
         if (!e.Cancel)
-            e.Cancel = !SaveDraft();
+            SaveSession();
     }
 
-    protected override void OnClosed(EventArgs e)
+    private void SaveSession()
     {
+        ScrollViewer? tree = FindScrollViewer(FileTree);
+        ScrollViewer? preview = FindScrollViewer(PreviewPane);
+        Rect bounds = RestoreBounds;
+        double paneWidth = TreeColumn.ActualWidth + PreviewColumn.ActualWidth;
         new WindowSession
         {
             TreeZoom = _treeZoom,
             PreviewZoom = _previewZoom,
             TreePath = SelectedTreePath,
-            PreviewPath = _selected?.Path
+            PreviewPath = _selected?.Path,
+            SortIndex = SortOrder.SelectedIndex,
+            ExpandedFolders = _root is null ? null : ExpandedFolders(_root).ToArray(),
+            TreeHorizontalOffset = tree?.HorizontalOffset,
+            TreeVerticalOffset = tree?.VerticalOffset,
+            PreviewHorizontalOffset = preview?.HorizontalOffset,
+            PreviewVerticalOffset = preview?.VerticalOffset,
+            Worksheet = DocumentPreviews.GetWorksheet(PreviewPane.Content as FrameworkElement),
+            PdfPosition = (PreviewPane.Content as PdfPreviewHost)?.Position,
+            WindowLeft = bounds.IsEmpty ? null : bounds.Left,
+            WindowTop = bounds.IsEmpty ? null : bounds.Top,
+            WindowWidth = bounds.IsEmpty ? null : bounds.Width,
+            WindowHeight = bounds.IsEmpty ? null : bounds.Height,
+            Maximized = WindowState == WindowState.Maximized,
+            TreeWidthShare = paneWidth > 0 ? TreeColumn.ActualWidth / paneWidth : null
         }.Save(_sessionPath);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
         ReleasePreview();
         base.OnClosed(e);
     }
