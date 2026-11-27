@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ApplicationLog.csproj" />
+  <Project Path="ApplicationLog.Wpf/ApplicationLog.Wpf.csproj" />
+</Solution>

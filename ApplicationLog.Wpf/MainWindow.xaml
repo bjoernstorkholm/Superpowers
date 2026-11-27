@@ -1,0 +1,88 @@
+<Window x:Class="ApplicationLog.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Applications" Icon="Assets/ApplicationLog.ico" Width="1180" Height="800" MinWidth="680" MinHeight="420"
+        Background="#EDF2EF" Foreground="#172A2B" FontSize="14"
+        PreviewKeyDown="ZoomKeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <DockPanel Background="#153C38" LastChildFill="True">
+            <Button DockPanel.Dock="Right" Content="_Refresh folders" Margin="16,12,24,12"
+                    Padding="14,6" Click="RefreshFolders" />
+            <TextBlock Text="Applications" Foreground="White" FontSize="22" FontWeight="SemiBold"
+                       Margin="24,12,0,12" VerticalAlignment="Center" />
+        </DockPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="36*" MinWidth="230" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="64*" MinWidth="340" />
+            </Grid.ColumnDefinitions>
+            <Border Background="#FAFCFB" Padding="16">
+                <DockPanel x:Name="TreePane" PreviewMouseWheel="TreeZoomWheel">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Folders and files" FontSize="17" FontWeight="SemiBold" />
+                        <TextBlock x:Name="FolderCount" Foreground="#465E5A" Margin="0,5,0,0" />
+                        <TextBlock x:Name="RootPath" Foreground="#465E5A" TextWrapping="Wrap"
+                                   Margin="0,4,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                            <Label Content="_Sort by" Target="{Binding ElementName=SortOrder}"
+                                   Padding="0,0,8,0" VerticalAlignment="Center" />
+                            <ComboBox x:Name="SortOrder" Width="135" SelectedIndex="0"
+                                      SelectionChanged="SortOrderChanged">
+                                <ComboBoxItem Content="Name" />
+                                <ComboBoxItem Content="Date modified" />
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button x:Name="TreeZoomOutButton" Content="−" MinWidth="32" Click="TreeZoomOut"
+                                    AutomationProperties.Name="Zoom out folder tree" ToolTip="Zoom out folder tree" />
+                            <Button x:Name="TreeZoomResetButton" Content="100%" MinWidth="56" Margin="4,0"
+                                    Click="TreeZoomReset" ToolTip="Reset folder tree zoom" />
+                            <Button x:Name="TreeZoomInButton" Content="+" MinWidth="32" Click="TreeZoomIn"
+                                    AutomationProperties.Name="Zoom in folder tree" ToolTip="Zoom in folder tree" />
+                        </StackPanel>
+                        <TextBlock x:Name="FolderMessage" TextWrapping="Wrap" Foreground="#465E5A"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+                    <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0"
+                              AutomationProperties.Name="Folders and files"
+                              SelectedItemChanged="SelectionChanged" TreeViewItem.Expanded="FolderExpanded"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                </DockPanel>
+            </Border>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" Background="#CBD8D2" />
+            <DockPanel x:Name="DocumentPane" Grid.Column="2" Margin="20" PreviewMouseWheel="PreviewZoomWheel">
+                <Border x:Name="DocumentHeader" DockPanel.Dock="Top" BorderBrush="#CBD8D2"
+                        BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="DocumentName" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock x:Name="DocumentPath" Foreground="#465E5A" Margin="0,5,0,0" TextWrapping="Wrap" />
+                        <StackPanel x:Name="PreviewZoomControls" Orientation="Horizontal" Margin="0,8,0,0"
+                                    Visibility="Collapsed">
+                            <Button x:Name="ZoomOutButton" Content="−" MinWidth="32" Click="PreviewZoomOut"
+                                    AutomationProperties.Name="Zoom out preview" ToolTip="Zoom out preview" />
+                            <Button x:Name="ZoomResetButton" Content="100%" MinWidth="56" Margin="4,0"
+                                    Click="PreviewZoomReset" ToolTip="Reset preview zoom" />
+                            <Button x:Name="ZoomInButton" Content="+" MinWidth="32" Click="PreviewZoomIn"
+                                    AutomationProperties.Name="Zoom in preview" ToolTip="Zoom in preview" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <ContentControl x:Name="PreviewPane" HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch" AutomationProperties.Name="Document preview">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="Document preview" FontSize="18" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,6" />
+                        <TextBlock Text="Select a file from the folder tree." Foreground="#465E5A" />
+                    </StackPanel>
+                </ContentControl>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</Window>
