@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private const int ZoomStep = 25;
 
     private readonly Library _library;
+    private readonly string? _sessionPath;
     private readonly object _unloaded = new();
     private readonly object _folderMessage = new();
     private readonly object _emptyPreview;
@@ -28,14 +29,86 @@ public partial class MainWindow : Window
     private int _treeZoom = DefaultZoom;
     private int _previewZoom = DefaultZoom;
 
-    public MainWindow(Library library)
+    public MainWindow(Library library) : this(library, WindowSession.GetPath(library.Root))
+    {
+    }
+
+    internal MainWindow(Library library, string? sessionPath)
     {
         _library = library;
+        _sessionPath = sessionPath;
         InitializeComponent();
         _emptyPreview = PreviewPane.Content;
         RootPath.Text = library.Root;
-        SetTreeZoom(DefaultZoom);
+        WindowSession session = WindowSession.Load(_sessionPath);
+        SetTreeZoom(session.TreeZoom ?? DefaultZoom);
+        _previewZoom = Math.Clamp(session.PreviewZoom ?? DefaultZoom, MinimumZoom, MaximumZoom);
         RefreshTree();
+        RestoreSession(session);
+    }
+
+    private string? SelectedTreePath => FileTree.SelectedItem is TreeViewItem { Tag: Entry entry }
+        ? entry.Path
+        : null;
+
+    private void RestoreSession(WindowSession session)
+    {
+        if (_root is null)
+            return;
+
+        _updatingTree = true;
+        try
+        {
+            if (session.PreviewPath is string previewPath)
+            {
+                try
+                {
+                    Entry entry = _library.Describe(previewPath);
+                    if (!entry.Folder)
+                        ShowPreview(entry);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    // The previous document may have moved or been removed.
+                }
+            }
+
+            if (session.TreePath is string treePath)
+                RestoreTreePath(treePath);
+        }
+        finally
+        {
+            _updatingTree = false;
+        }
+    }
+
+    private void RestoreTreePath(string path)
+    {
+        TreeViewItem? item = _root;
+        if (item is null)
+            return;
+
+        if (path != ".")
+        {
+            string relativePath = "";
+            foreach (string part in path.Split(Path.DirectorySeparatorChar))
+            {
+                relativePath = Path.Combine(relativePath, part);
+                if (!item.IsExpanded && item.Tag is Entry { Folder: true } folder)
+                {
+                    LoadChildren(item, folder);
+                    item.IsExpanded = true;
+                }
+
+                item = item.Items.OfType<TreeViewItem>().FirstOrDefault(child =>
+                    child.Tag is Entry entry && entry.Path == relativePath);
+                if (item is null)
+                    return;
+            }
+        }
+
+        item.IsSelected = true;
+        item.BringIntoView();
     }
 
     private TreeSortOrder CurrentSort => SortOrder.SelectedIndex == 1
@@ -50,6 +123,7 @@ public partial class MainWindow : Window
 
     private void RefreshTree()
     {
+        string? treePath = SelectedTreePath;
         _updatingTree = true;
         try
         {
@@ -88,7 +162,10 @@ public partial class MainWindow : Window
             }
 
             if (_selected is null)
+            {
+                RestoreVisibleSelection(_root, treePath);
                 return;
+            }
 
             try
             {
@@ -103,7 +180,7 @@ public partial class MainWindow : Window
                 ClearPreview();
             }
 
-            RestoreVisibleSelection(_root);
+            RestoreVisibleSelection(_root, treePath);
         }
         finally
         {
@@ -145,6 +222,7 @@ public partial class MainWindow : Window
         if (_updatingTree || e.OriginalSource is not TreeViewItem { Tag: Entry { Folder: true } entry } item)
             return;
 
+        string? treePath = SelectedTreePath;
         _updatingTree = true;
         try
         {
@@ -158,7 +236,7 @@ public partial class MainWindow : Window
             }
 
             LoadChildren(item, entry);
-            RestoreVisibleSelection(item);
+            RestoreVisibleSelection(item, treePath);
         }
         finally
         {
@@ -202,11 +280,12 @@ public partial class MainWindow : Window
         if (_root is null)
             return;
 
+        string? treePath = SelectedTreePath;
         _updatingTree = true;
         try
         {
             SortChildren(_root);
-            RestoreVisibleSelection(_root);
+            RestoreVisibleSelection(_root, treePath);
         }
         finally
         {
@@ -232,20 +311,20 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RestoreVisibleSelection(TreeViewItem? parent)
+    private static void RestoreVisibleSelection(TreeViewItem? parent, string? treePath)
     {
-        if (parent is not { IsExpanded: true } || _selected is null)
+        if (parent is not { IsExpanded: true } || treePath is null)
             return;
 
         foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
         {
-            if (child.Tag is Entry entry && entry.Path == _selected.Path)
+            if (child.Tag is Entry entry && entry.Path == treePath)
             {
                 child.IsSelected = true;
                 return;
             }
 
-            RestoreVisibleSelection(child);
+            RestoreVisibleSelection(child, treePath);
         }
     }
 
@@ -424,6 +503,13 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        new WindowSession
+        {
+            TreeZoom = _treeZoom,
+            PreviewZoom = _previewZoom,
+            TreePath = SelectedTreePath,
+            PreviewPath = _selected?.Path
+        }.Save(_sessionPath);
         ReleasePreview();
         base.OnClosed(e);
     }
