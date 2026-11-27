@@ -4,6 +4,21 @@
         Title="Applications" Icon="Assets/ApplicationLog.ico" Width="1180" Height="800" MinWidth="680" MinHeight="420"
         Background="#EDF2EF" Foreground="#172A2B" FontSize="14"
         PreviewKeyDown="ZoomKeyDown">
+    <Window.Resources>
+        <Style x:Key="SelectablePath" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#465E5A" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ForceCursor" Value="True" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="PathMouseDown" />
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="PathMouseUp" />
+            <EventSetter Event="PreviewKeyDown" Handler="PathKeyDown" />
+            <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -24,10 +39,16 @@
             <Border Background="#FAFCFB" Padding="16">
                 <DockPanel x:Name="TreePane" PreviewMouseWheel="TreeZoomWheel">
                     <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="Folders and files" FontSize="17" FontWeight="SemiBold" />
-                        <TextBlock x:Name="FolderCount" Foreground="#465E5A" Margin="0,5,0,0" />
-                        <TextBlock x:Name="RootPath" Foreground="#465E5A" TextWrapping="Wrap"
-                                   Margin="0,4,0,0" />
+                        <WrapPanel>
+                            <TextBlock x:Name="TreeTitle" Text="Folders and files" FontSize="17"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <DockPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="FolderCount" DockPanel.Dock="Left" Foreground="#465E5A"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBox x:Name="RootPath" Style="{StaticResource SelectablePath}" TextWrapping="Wrap"
+                                         AutomationProperties.Name="Applications folder path" />
+                            </DockPanel>
+                        </WrapPanel>
                         <Grid Margin="0,10,0,10" SizeChanged="TreeToolbarSizeChanged">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -72,8 +93,12 @@
                         BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12"
                         Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock x:Name="DocumentName" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock x:Name="DocumentPath" Foreground="#465E5A" Margin="0,5,0,0" TextWrapping="Wrap" />
+                        <WrapPanel>
+                            <TextBlock x:Name="DocumentName" FontSize="18" FontWeight="SemiBold"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBox x:Name="DocumentPath" Style="{StaticResource SelectablePath}"
+                                     TextWrapping="Wrap" VerticalAlignment="Center" AutomationProperties.Name="Document path" />
+                        </WrapPanel>
                         <StackPanel x:Name="PreviewZoomControls" Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right"
                                     Visibility="Collapsed">
                             <Button x:Name="ZoomOutButton" Content="−" MinWidth="32" Click="PreviewZoomOut"

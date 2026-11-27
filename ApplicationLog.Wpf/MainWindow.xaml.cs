@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
     private TreeViewItem? _root;
     private Entry? _selected;
     private bool _updatingTree;
+    private Point? _pathClickStart;
     private int _treeZoom = DefaultZoom;
     private int _previewZoom = DefaultZoom;
 
@@ -472,7 +474,7 @@ public partial class MainWindow : Window
         ReleasePreview();
         _selected = entry;
         DocumentName.Text = entry.Name;
-        DocumentPath.Text = entry.Path;
+        DocumentPath.Text = Path.GetFullPath(entry.Path, _library.Root);
         DocumentHeader.Visibility = Visibility.Visible;
         PreviewZoomControls.Visibility = Visibility.Collapsed;
         try
@@ -495,6 +497,62 @@ public partial class MainWindow : Window
                 Text = "This file could not be previewed.",
                 TextWrapping = TextWrapping.Wrap
             };
+        }
+    }
+
+    private void PathMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _pathClickStart = e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None
+            ? e.GetPosition((TextBox)sender)
+            : null;
+    }
+
+    private void PathMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        Point? start = _pathClickStart;
+        _pathClickStart = null;
+        if (start is not Point origin || sender is not TextBox path || path.SelectionLength != 0)
+            return;
+
+        Vector movement = e.GetPosition(path) - origin;
+        if (Math.Abs(movement.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(movement.Y) < SystemParameters.MinimumVerticalDragDistance)
+            OpenPath(path);
+    }
+
+    private void PathKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None || sender is not TextBox path)
+            return;
+
+        e.Handled = true;
+        OpenPath(path);
+    }
+
+    private void OpenPath(TextBox path)
+    {
+        try
+        {
+            if (ReferenceEquals(path, RootPath))
+            {
+                _library.Describe(".");
+                using Process? explorer = Process.Start(new ProcessStartInfo(_library.Root) { UseShellExecute = true });
+                return;
+            }
+
+            if (_selected is not Entry selected)
+                return;
+
+            _library.Describe(selected.Path);
+            using Process? document = Process.Start(new ProcessStartInfo(path.Text) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception or ArgumentException)
+        {
+            string message = ReferenceEquals(path, RootPath)
+                ? "This folder could not be opened in File Explorer."
+                : "This document could not be opened in its default app.";
+            MessageBox.Show(this, message, "ApplicationLog",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
