@@ -498,6 +498,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TreeToolbarSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        Size unconstrained = new Size(double.PositiveInfinity, double.PositiveInfinity);
+        // Measure at natural widths so the current layout cannot hide the width needed for a single row.
+        TreeSortControls.Measure(unconstrained);
+        TreeZoomControls.Measure(unconstrained);
+        double zoomWidth = TreeZoomControls.DesiredSize.Width - TreeZoomControls.Margin.Left;
+        bool wraps = e.NewSize.Width < TreeSortControls.DesiredSize.Width + 8 + zoomWidth;
+        Grid.SetRow(TreeZoomControls, wraps ? 1 : 0);
+        Grid.SetColumn(TreeZoomControls, wraps ? 0 : 1);
+        Grid.SetColumnSpan(TreeZoomControls, wraps ? 2 : 1);
+        TreeZoomControls.HorizontalAlignment = wraps ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        double dropdownLeft = TreeSortControls.DesiredSize.Width - SortOrder.DesiredSize.Width;
+        TreeZoomControls.Margin = wraps ? new Thickness(dropdownLeft, 6, 0, 0) : new Thickness(8, 0, 0, 0);
+    }
+
     private void SetTreeZoom(int percent)
     {
         _treeZoom = Math.Clamp(percent, MinimumZoom, MaximumZoom);

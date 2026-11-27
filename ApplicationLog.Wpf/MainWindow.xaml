@@ -28,23 +28,34 @@
                         <TextBlock x:Name="FolderCount" Foreground="#465E5A" Margin="0,5,0,0" />
                         <TextBlock x:Name="RootPath" Foreground="#465E5A" TextWrapping="Wrap"
                                    Margin="0,4,0,0" />
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
-                            <Label Content="_Sort by" Target="{Binding ElementName=SortOrder}"
-                                   Padding="0,0,8,0" VerticalAlignment="Center" />
-                            <ComboBox x:Name="SortOrder" Width="135" SelectedIndex="0"
-                                      SelectionChanged="SortOrderChanged">
-                                <ComboBoxItem Content="Name" />
-                                <ComboBoxItem Content="Date modified" />
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <Button x:Name="TreeZoomOutButton" Content="−" MinWidth="32" Click="TreeZoomOut"
-                                    AutomationProperties.Name="Zoom out folder tree" ToolTip="Zoom out folder tree" />
-                            <Button x:Name="TreeZoomResetButton" Content="100%" MinWidth="56" Margin="4,0"
-                                    Click="TreeZoomReset" ToolTip="Reset folder tree zoom" />
-                            <Button x:Name="TreeZoomInButton" Content="+" MinWidth="32" Click="TreeZoomIn"
-                                    AutomationProperties.Name="Zoom in folder tree" ToolTip="Zoom in folder tree" />
-                        </StackPanel>
+                        <Grid Margin="0,10,0,10" SizeChanged="TreeToolbarSizeChanged">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel x:Name="TreeSortControls" Orientation="Horizontal">
+                                <Label Content="_Sort by" Target="{Binding ElementName=SortOrder}"
+                                       Padding="0,0,6,0" VerticalAlignment="Center" />
+                                <ComboBox x:Name="SortOrder" Width="110" VerticalAlignment="Center"
+                                          SelectedIndex="0" SelectionChanged="SortOrderChanged">
+                                    <ComboBoxItem Content="Name" />
+                                    <ComboBoxItem Content="Date modified" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel x:Name="TreeZoomControls" Grid.Column="1" Orientation="Horizontal"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <Button x:Name="TreeZoomOutButton" Content="−" MinWidth="26" Click="TreeZoomOut"
+                                        AutomationProperties.Name="Zoom out folder tree" ToolTip="Zoom out folder tree" />
+                                <Button x:Name="TreeZoomResetButton" Content="100%" MinWidth="46" Margin="3,0"
+                                        Click="TreeZoomReset" ToolTip="Reset folder tree zoom" />
+                                <Button x:Name="TreeZoomInButton" Content="+" MinWidth="26" Click="TreeZoomIn"
+                                        AutomationProperties.Name="Zoom in folder tree" ToolTip="Zoom in folder tree" />
+                            </StackPanel>
+                        </Grid>
                         <TextBlock x:Name="FolderMessage" TextWrapping="Wrap" Foreground="#465E5A"
                                    Visibility="Collapsed" />
                     </StackPanel>
@@ -63,7 +74,7 @@
                     <StackPanel>
                         <TextBlock x:Name="DocumentName" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
                         <TextBlock x:Name="DocumentPath" Foreground="#465E5A" Margin="0,5,0,0" TextWrapping="Wrap" />
-                        <StackPanel x:Name="PreviewZoomControls" Orientation="Horizontal" Margin="0,8,0,0"
+                        <StackPanel x:Name="PreviewZoomControls" Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right"
                                     Visibility="Collapsed">
                             <Button x:Name="ZoomOutButton" Content="−" MinWidth="32" Click="PreviewZoomOut"
                                     AutomationProperties.Name="Zoom out preview" ToolTip="Zoom out preview" />
