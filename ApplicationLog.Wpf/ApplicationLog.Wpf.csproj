@@ -10,6 +10,7 @@
   <ItemGroup>
     <Resource Include="Assets/ApplicationLog.ico" />
     <Using Include="System.IO" />
+    <InternalsVisibleTo Include="ApplicationLog.Tests" />
     <None Update="PdfViewer/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />

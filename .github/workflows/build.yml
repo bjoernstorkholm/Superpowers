@@ -1,4 +1,4 @@
-name: Build
+name: Build and test
 
 on:
   push:
@@ -17,7 +17,9 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
-      - name: Restore Blazor and WPF
+      - name: Restore solution
         run: dotnet restore Applications.slnx
-      - name: Build Blazor and WPF
+      - name: Build solution
         run: dotnet build Applications.slnx --configuration Release --no-restore
+      - name: Run tests
+        run: dotnet test Applications.slnx --configuration Release --no-build --no-restore

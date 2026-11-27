@@ -10,12 +10,12 @@ ApplicationLog is a local Blazor app for browsing job application folders. The l
 
    ```powershell
    Set-Location C:\projects\ApplicationLog
-   dotnet run
+   dotnet run --project .\ApplicationLog.Blazor\ApplicationLog.Blazor.csproj
    ```
 
 4. Open [http://localhost:5176](http://localhost:5176).
 
-The app reads `C:\Users\bjoer\Documents\Applications` by default. To change the location, edit `ApplicationsFolder` in `appsettings.json`. The web server listens on loopback. The app browses source files directly without copying or editing them.
+The app reads `C:\Users\bjoer\Documents\Applications` by default. To change the location, edit `ApplicationsFolder` in `ApplicationLog.Blazor/appsettings.json`. The web server listens on loopback. The app browses source files directly without copying or editing them.
 
 ## Previews
 
@@ -33,6 +33,6 @@ On Windows with the .NET 10 SDK, run this command from the repository root:
 dotnet run --project .\ApplicationLog.Wpf\ApplicationLog.Wpf.csproj
 ```
 
-The desktop app supports TXT editing and autosave, PDF, Word and Excel previews, and separate zoom controls for the folder tree and preview. Install the Microsoft Edge WebView2 Runtime for PDF previews. Set `ApplicationsRoot` in `ApplicationLog.Wpf/appsettings.json` or as an environment variable to change the desktop app's folder. Blazor continues to use `ApplicationsFolder` in the root settings file.
+The desktop app supports TXT editing and autosave, PDF, Word and Excel previews, and separate zoom controls for the folder tree and preview. Install the Microsoft Edge WebView2 Runtime for PDF previews. Set `ApplicationsRoot` in `ApplicationLog.Wpf/appsettings.json` or as an environment variable to change the desktop app's folder. Blazor uses `ApplicationsFolder` in `ApplicationLog.Blazor/appsettings.json`.
 
-Build both apps with `dotnet build Applications.slnx`.
+Build the solution with `dotnet build Applications.slnx`. Run the separate test project on Windows with `dotnet test Applications.slnx`.
