@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.12.12412.261
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApplicationLog", "ApplicationLog.csproj", "{704A0224-A0F0-47FD-9BE2-033DF8030D3A}"
 EndProject
@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Agents", "Agents", "{AA5B88
 	ProjectSection(SolutionItems) = preProject
 		AGENTS.md = AGENTS.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApplicationLog.Wpf", "ApplicationLog.Wpf\ApplicationLog.Wpf.csproj", "{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -46,8 +48,23 @@ Global
 		{DF03999C-2D22-40D8-96B7-F9709D88E97B}.Release|x64.Build.0 = Release|Any CPU
 		{DF03999C-2D22-40D8-96B7-F9709D88E97B}.Release|x86.ActiveCfg = Release|Any CPU
 		{DF03999C-2D22-40D8-96B7-F9709D88E97B}.Release|x86.Build.0 = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|x64.Build.0 = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Debug|x86.Build.0 = Debug|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|x64.ActiveCfg = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|x64.Build.0 = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|x86.ActiveCfg = Release|Any CPU
+		{5E90CA36-3950-4696-BAD1-CF1A70A6AD90}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3B162548-86B1-449E-9165-A27AC84E4BD3}
 	EndGlobalSection
 EndGlobal
