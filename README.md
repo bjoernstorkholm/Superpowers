@@ -35,4 +35,4 @@ dotnet run --project .\ApplicationLog.Wpf\ApplicationLog.Wpf.csproj
 
 The desktop app supports TXT editing and autosave, PDF, Word and Excel previews, and separate zoom controls for the folder tree and preview. Install the Microsoft Edge WebView2 Runtime for PDF previews. Set `ApplicationsRoot` in `ApplicationLog.Wpf/appsettings.json` or as an environment variable to change the desktop app's folder. Blazor uses `ApplicationsFolder` in `ApplicationLog.Blazor/appsettings.json`.
 
-Build the solution with `dotnet build Applications.slnx`. Run the separate test project on Windows with `dotnet test Applications.slnx`.
+Build the solution with `dotnet build ApplicationLog.slnx`. Run the separate test project on Windows with `dotnet test ApplicationLog.slnx`.
