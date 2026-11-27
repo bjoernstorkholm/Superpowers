@@ -11,58 +11,62 @@
 </header>
 
 <main class="workspace">
-    <aside class="sidebar" aria-label="Application files" @ref="_tree">
-        <div class="pane-heading">
-            <h2>Folders and files</h2>
-            <div class="folder-details">
-                @if (_folderCount is int count)
-                {
-                    <span class="folder-count">@(count == 1 ? "1 folder" : $"{count:N0} folders")</span>
-                }
-                <a class="path-link" href="#folder-path" draggable="false" title="@Files.Root"
-                   @onclick="OpenRoot" @onclick:preventDefault>@Files.Root</a>
-            </div>
-        </div>
-        <div class="tree-toolbar">
-            <label for="tree-sort">Sort by</label>
-            <div class="tree-toolbar-controls">
-                <select class="sort-select" id="tree-sort" value="@(_state.SortByDate ? "date" : "name")" @onchange="ChangeSort">
-                    <option value="name">Name</option>
-                    <option value="date">Date modified</option>
-                </select>
-                <div class="zoom-controls" role="group" aria-label="Folder tree zoom">
-                    <button type="button" aria-label="Zoom out in the folder tree"
-                            disabled="@(_state.TreeZoom == MinZoom)" @onclick="() => ChangeZoom(TreePane, -1)">−</button>
-                    <button type="button" aria-label="Reset folder tree zoom to 100%"
-                            @onclick="() => ChangeZoom(TreePane, 0)">@_state.TreeZoom%</button>
-                    <button type="button" aria-label="Zoom in on the folder tree"
-                            disabled="@(_state.TreeZoom == MaxZoom)" @onclick="() => ChangeZoom(TreePane, 1)">+</button>
+    <aside class="sidebar" aria-label="Application files">
+        <div class="tree-pane-header">
+            <div class="pane-heading">
+                <h2>Folders and files</h2>
+                <div class="folder-details">
+                    @if (_folderCount is int count)
+                    {
+                        <span class="folder-count">@(count == 1 ? "1 folder" : $"{count:N0} folders")</span>
+                    }
+                    <a class="path-link" href="#folder-path" draggable="false" title="@Files.Root"
+                       @onclick="OpenRoot" @onclick:preventDefault>@Files.Root</a>
                 </div>
             </div>
+            <div class="tree-toolbar">
+                <label for="tree-sort">Sort by</label>
+                <div class="tree-toolbar-controls">
+                    <select class="sort-select" id="tree-sort" value="@(_state.SortByDate ? "date" : "name")" @onchange="ChangeSort">
+                        <option value="name">Name</option>
+                        <option value="date">Date modified</option>
+                    </select>
+                    <div class="zoom-controls" role="group" aria-label="Folder tree zoom">
+                        <button type="button" aria-label="Zoom out in the folder tree"
+                                disabled="@(_state.TreeZoom == MinZoom)" @onclick="() => ChangeZoom(TreePane, -1)">−</button>
+                        <button type="button" aria-label="Reset folder tree zoom to 100%"
+                                @onclick="() => ChangeZoom(TreePane, 0)">@_state.TreeZoom%</button>
+                        <button type="button" aria-label="Zoom in on the folder tree"
+                                disabled="@(_state.TreeZoom == MaxZoom)" @onclick="() => ChangeZoom(TreePane, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+            @if (_folderOpenError is not null)
+            {
+                <p class="message error" role="status">@_folderOpenError</p>
+            }
         </div>
-        @if (_folderOpenError is not null)
-        {
-            <p class="message error" role="status">@_folderOpenError</p>
-        }
-        @if (_rootError is not null)
-        {
-            <p class="message" role="status">@_rootError</p>
-        }
-        else if (_entries.Length == 0)
-        {
-            <p class="message">This folder is empty.</p>
-        }
-        else
-        {
-            <ul class="tree" style="@ZoomStyle(_state.TreeZoom)" @key="_treeVersion">
-                @foreach (FileEntry entry in _entries)
-                {
-                    <TreeNode @key="entry.RelativePath" Entry="entry" SelectedPath="@_state.SelectedTreePath"
-                              ExpandedFolders="_expandedFolders" SortByDate="_state.SortByDate"
-                              OnSelect="Select" OnToggle="ToggleFolder" />
-                }
-            </ul>
-        }
+        <div class="tree-pane-scroll" @ref="_tree">
+            @if (_rootError is not null)
+            {
+                <p class="message" role="status">@_rootError</p>
+            }
+            else if (_entries.Length == 0)
+            {
+                <p class="message">This folder is empty.</p>
+            }
+            else
+            {
+                <ul class="tree" style="@ZoomStyle(_state.TreeZoom)" @key="_treeVersion">
+                    @foreach (FileEntry entry in _entries)
+                    {
+                        <TreeNode @key="entry.RelativePath" Entry="entry" SelectedPath="@_state.SelectedTreePath"
+                                  ExpandedFolders="_expandedFolders" SortByDate="_state.SortByDate"
+                                  OnSelect="Select" OnToggle="ToggleFolder" />
+                    }
+                </ul>
+            }
+        </div>
     </aside>
     <div class="pane-divider" role="separator" aria-label="Resize panes" aria-orientation="vertical" tabindex="0"></div>
 
@@ -166,6 +170,7 @@
     private DotNetObjectReference<Home>? _interop;
     private bool _attached;
     private bool _savePending;
+    private bool _revealTreeSelection;
 
     protected override void OnInitialized() => ReadRoot();
 
@@ -193,6 +198,12 @@
                 _interop ??= DotNetObjectReference.Create(this);
                 await _sessionModule.InvokeVoidAsync("attach", Files.Root, _tree, _preview, _interop);
                 _attached = true;
+            }
+
+            if (_revealTreeSelection)
+            {
+                _revealTreeSelection = false;
+                await _sessionModule.InvokeVoidAsync("revealSelectedTreeRow", _tree);
             }
 
             if (_savePending)
@@ -232,6 +243,7 @@
         _state.SelectedTreePath = TryDescribe(_state.SelectedTreePath)?.RelativePath;
         _selected = TryDescribe(_state.PreviewPath) is { IsFolder: false } document ? document : null;
         _state.PreviewPath = _selected?.RelativePath;
+        _revealTreeSelection = true;
         _savePending = true;
     }
 
@@ -289,6 +301,7 @@
         }
 
         _state.ExpandedFolders = _expandedFolders.ToArray();
+        _revealTreeSelection = true;
         _savePending = true;
     }
 
@@ -305,6 +318,7 @@
     {
         _state.SortByDate = string.Equals(args.Value as string, "date", StringComparison.Ordinal);
         ReadRoot();
+        _revealTreeSelection = true;
         _savePending = true;
     }
 
@@ -312,7 +326,10 @@
     public Task ChangeZoom(string pane, int step) => InvokeAsync(() =>
     {
         if (pane == TreePane)
+        {
             _state.TreeZoom = NextZoom(_state.TreeZoom, step);
+            _revealTreeSelection = true;
+        }
         else if (pane == PreviewPane && _selected is not null)
             _state.PreviewZoom = NextZoom(_state.PreviewZoom, step);
         else

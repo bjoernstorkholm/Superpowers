@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         _library = library;
         _sessionPath = sessionPath;
         InitializeComponent();
+        SortOrder.DropDownClosed += (_, _) => RevealSelectedTreeRow();
         _emptyPreview = PreviewPane.Content;
         RootPath.Text = library.Root;
         WindowSession session = WindowSession.Load(_sessionPath);
@@ -265,11 +266,14 @@ public partial class MainWindow : Window
                 FolderCount.Text = "Folder count unavailable";
             }
 
-            if (_selected is null)
+            if (treePath is not null)
             {
-                RestoreVisibleSelection(_root, treePath);
-                return;
+                RestoreTreePath(treePath);
+                RevealSelectedTreeRow();
             }
+
+            if (_selected is null)
+                return;
 
             try
             {
@@ -283,8 +287,6 @@ public partial class MainWindow : Window
             {
                 ClearPreview();
             }
-
-            RestoreVisibleSelection(_root, treePath);
         }
         finally
         {
@@ -341,6 +343,7 @@ public partial class MainWindow : Window
 
             LoadChildren(item, entry);
             RestoreVisibleSelection(item, treePath);
+            RevealSelectedTreeRow();
         }
         finally
         {
@@ -389,7 +392,11 @@ public partial class MainWindow : Window
         try
         {
             SortChildren(_root);
-            RestoreVisibleSelection(_root, treePath);
+            if (treePath is not null)
+                RestoreTreePath(treePath);
+
+            if (!SortOrder.IsDropDownOpen)
+                RevealSelectedTreeRow();
         }
         finally
         {
@@ -572,11 +579,24 @@ public partial class MainWindow : Window
         TreeZoomControls.Margin = wraps ? new Thickness(dropdownLeft, 6, 0, 0) : new Thickness(8, 0, 0, 0);
     }
 
+    private void RevealSelectedTreeRow()
+    {
+        if (FileTree.SelectedItem is not TreeViewItem { Header: FrameworkElement header } item)
+            return;
+
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, () =>
+        {
+            if (ReferenceEquals(FileTree.SelectedItem, item))
+                header.BringIntoView();
+        });
+    }
+
     private void SetTreeZoom(int percent)
     {
         _treeZoom = Math.Clamp(percent, MinimumZoom, MaximumZoom);
         FileTree.LayoutTransform = ScaleForZoom(_treeZoom);
         UpdateZoomButtons(TreeZoomOutButton, TreeZoomResetButton, TreeZoomInButton, _treeZoom, "folder tree");
+        RevealSelectedTreeRow();
     }
 
     private void SetPreviewZoom(int percent)

@@ -143,7 +143,8 @@ export function attach(root, tree, preview, dotnet) {
     }
 
     document.addEventListener("click", guardPathClick, { capture: true, signal });
-    zoomEvents(tree, "tree");
+    const treePane = tree.closest(".sidebar") ?? tree;
+    zoomEvents(treePane, "tree");
     const workspace = tree.closest(".workspace");
     const divider = workspace?.querySelector(".pane-divider");
     zoomEvents(preview.closest(".preview") ?? preview, "preview");
@@ -173,7 +174,7 @@ export function attach(root, tree, preview, dotnet) {
         divider.addEventListener("lostpointercapture", persist, { signal });
         divider.addEventListener("keydown", event => {
             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                const width = paneWidth ?? 100 * tree.clientWidth / workspace.clientWidth;
+                const width = paneWidth ?? 100 * treePane.clientWidth / workspace.clientWidth;
                 setPaneWidth(width + (event.key === "ArrowRight" ? 2 : -2));
                 event.preventDefault();
                 persist();
@@ -221,6 +222,22 @@ export function attach(root, tree, preview, dotnet) {
             events.abort();
         }
     });
+}
+
+export function revealSelectedTreeRow(tree) {
+    const row = tree.querySelector('.tree-row[aria-pressed="true"]');
+    if (!row) {
+        return;
+    }
+
+    const bounds = row.getBoundingClientRect();
+    const top = tree.getBoundingClientRect().top + tree.clientTop;
+    const bottom = top + tree.clientHeight;
+    if (bounds.top < top || bounds.height > tree.clientHeight) {
+        tree.scrollTop += bounds.top - top;
+    } else if (bounds.bottom > bottom) {
+        tree.scrollTop += bounds.bottom - bottom;
+    }
 }
 
 export function save(root, state) {
