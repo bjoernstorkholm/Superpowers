@@ -1,11 +1,13 @@
+@using System.Globalization
 @inject ApplicationFiles Files
 
 <li>
     @if (Entry.IsFolder)
     {
-        <button class="tree-row folder" aria-expanded="@(_expanded ? "true" : "false")" @onclick="Toggle">
+        <button type="button" class="tree-row folder" aria-expanded="@(_expanded ? "true" : "false")"
+                aria-pressed="@Selected" @onclick="() => OnToggle.InvokeAsync(Entry)">
             <span class="tree-icon" aria-hidden="true">@(_expanded ? "▾" : "▸")</span>
-            <span>@Entry.Name</span>
+            <span><time class="tree-date" datetime="@Timestamp">@Modified</time> @Entry.Name</span>
         </button>
         @if (_expanded)
         {
@@ -20,9 +22,11 @@
             else
             {
                 <ul class="tree branch">
-                    @foreach (var child in _children)
+                    @foreach (FileEntry child in _children)
                     {
-                        <TreeNode @key="child.RelativePath" Entry="child" SelectedPath="@SelectedPath" OnSelect="OnSelect" />
+                        <TreeNode @key="child.RelativePath" Entry="child" SelectedPath="@SelectedPath"
+                                  ExpandedFolders="ExpandedFolders" SortByDate="SortByDate"
+                                  OnSelect="OnSelect" OnToggle="OnToggle" />
                     }
                 </ul>
             }
@@ -30,33 +34,45 @@
     }
     else
     {
-        <button class="tree-row file" aria-pressed="@(SelectedPath == Entry.RelativePath ? "true" : "false")"
+        <button type="button" class="tree-row file" aria-pressed="@Selected"
                 @onclick="() => OnSelect.InvokeAsync(Entry)">
             <span class="tree-icon file-icon" aria-hidden="true"></span>
-            <span>@Entry.Name</span>
+            <span><time class="tree-date" datetime="@Timestamp">@Modified</time> @Entry.Name</span>
         </button>
     }
 </li>
 
 @code {
     [Parameter, EditorRequired] public FileEntry Entry { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlySet<string> ExpandedFolders { get; set; } = default!;
     [Parameter] public string? SelectedPath { get; set; }
+    [Parameter] public bool SortByDate { get; set; }
     [Parameter] public EventCallback<FileEntry> OnSelect { get; set; }
+    [Parameter] public EventCallback<FileEntry> OnToggle { get; set; }
 
     private FileEntry[] _children = [];
     private bool _expanded;
+    private bool _loadedSortByDate;
     private string? _error;
 
-    private void Toggle()
+    private string Selected => string.Equals(SelectedPath, Entry.RelativePath, StringComparison.OrdinalIgnoreCase)
+        ? "true" : "false";
+    private string Modified => Entry.Modified.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    private string Timestamp => Entry.Modified.ToString("O", CultureInfo.InvariantCulture);
+
+    protected override void OnParametersSet()
     {
-        _expanded = !_expanded;
-        if (!_expanded)
+        bool expanded = Entry.IsFolder && ExpandedFolders.Contains(Entry.RelativePath);
+        bool loadChildren = expanded && (!_expanded || _loadedSortByDate != SortByDate);
+        _expanded = expanded;
+        if (!loadChildren)
             return;
 
+        _loadedSortByDate = SortByDate;
         _error = null;
         try
         {
-            _children = Files.List(Entry.RelativePath);
+            _children = Files.List(Entry.RelativePath, SortByDate);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

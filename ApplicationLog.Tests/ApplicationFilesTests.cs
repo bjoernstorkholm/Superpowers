@@ -14,13 +14,54 @@ public sealed class ApplicationFilesTests
 
         FileEntry[] entries = files.List("");
 
-        Assert.Collection(entries,
-            entry => Assert.Equal(new FileEntry("alpha", "alpha", true), entry),
-            entry => Assert.Equal(new FileEntry("Zebra", "Zebra", true), entry),
-            entry => Assert.Equal(new FileEntry("a.txt", "a.txt", false), entry),
-            entry => Assert.Equal(new FileEntry("B.pdf", "B.pdf", false), entry));
-        Assert.Equal(new FileEntry("notes.txt", Path.Combine("Zebra", "notes.txt"), false),
-            Assert.Single(files.List("Zebra")));
+        Assert.Equal(
+            new[] { ("alpha", "alpha", true), ("Zebra", "Zebra", true), ("a.txt", "a.txt", false), ("B.pdf", "B.pdf", false) },
+            entries.Select(entry => (entry.Name, entry.RelativePath, entry.IsFolder)));
+        FileEntry nested = Assert.Single(files.List("Zebra"));
+        Assert.Equal(("notes.txt", Path.Combine("Zebra", "notes.txt"), false),
+            (nested.Name, nested.RelativePath, nested.IsFolder));
+    }
+
+    [Fact]
+    public void ListCanSortByModificationTimeAndKeepsTheLogFirst()
+    {
+        using TestDirectory fixtures = new();
+        string alpha = fixtures.CreateFolder("Alpha");
+        string zebra = fixtures.CreateFolder("Zebra");
+        string oldDocument = fixtures.CreateText("a.txt", "");
+        string newDocument = fixtures.CreateText("z.txt", "");
+        string log = fixtures.CreateText("LOG.TXT", "");
+        DateTime old = new(2024, 1, 2, 12, 0, 0, DateTimeKind.Utc);
+        DateTime recent = old.AddDays(1);
+        Directory.SetLastWriteTimeUtc(alpha, old);
+        Directory.SetLastWriteTimeUtc(zebra, recent);
+        File.SetLastWriteTimeUtc(oldDocument, old);
+        File.SetLastWriteTimeUtc(newDocument, recent);
+        File.SetLastWriteTimeUtc(log, old.AddDays(-1));
+        ApplicationFiles files = new(fixtures.Path);
+
+        Assert.Equal(new[] { "LOG.TXT", "Alpha", "Zebra", "a.txt", "z.txt" },
+            files.List("").Select(entry => entry.Name));
+        Assert.Equal(new[] { "LOG.TXT", "Zebra", "Alpha", "z.txt", "a.txt" },
+            files.List("", sortByDate: true).Select(entry => entry.Name));
+    }
+
+    [Fact]
+    public void CountFoldersIncludesNestedFoldersAndDescribeReturnsLastModified()
+    {
+        using TestDirectory fixtures = new();
+        string path = fixtures.CreateText("Alpha/Nested/Notes.txt", "");
+        fixtures.CreateFolder("Beta");
+        DateTime modified = new(2024, 1, 2, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(path, modified);
+        ApplicationFiles files = new(fixtures.Path);
+
+        Assert.Equal(3, files.CountFolders());
+        FileEntry entry = files.Describe("Alpha/Nested/Notes.txt");
+        Assert.Equal(("Notes.txt", Path.Combine("Alpha", "Nested", "Notes.txt"), false),
+            (entry.Name, entry.RelativePath, entry.IsFolder));
+        Assert.Equal(modified, entry.Modified.ToUniversalTime());
+        Assert.Throws<FileNotFoundException>(() => files.Describe("Alpha/../Notes.txt"));
     }
 
     [Fact]

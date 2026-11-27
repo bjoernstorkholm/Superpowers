@@ -1,0 +1,58 @@
+@using System.Security.Cryptography
+@using System.Text
+@using Microsoft.JSInterop
+@inject ApplicationFiles Files
+@inject IJSRuntime Javascript
+@implements IAsyncDisposable
+
+<iframe @key="_source" @ref="_frame" src="@_source" class="pdf-preview" title="PDF document preview"
+        sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"
+        style="display:block;width:100%;height:100%;min-height:20rem;border:0"></iframe>
+
+@code {
+    [Parameter, EditorRequired] public string RelativePath { get; set; } = "";
+    [Parameter] public int Zoom { get; set; } = 100;
+
+    private ElementReference _frame;
+    private IJSObjectReference? _browser;
+    private string? _renderedPath;
+    private string? _source;
+
+    protected override void OnParametersSet()
+    {
+        if (_renderedPath == RelativePath)
+            return;
+
+        _renderedPath = RelativePath;
+        string rootKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Files.Root)));
+        string documentUrl = "/preview?path=" + Uri.EscapeDataString(RelativePath);
+        _source = $"/pdf-viewer/web/viewer.html?file={Uri.EscapeDataString(documentUrl)}" +
+            $"&appZoom={Math.Clamp(Zoom, 50, 200)}&scope={rootKey}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _browser ??= await Javascript.InvokeAsync<IJSObjectReference>("import", "./pdf-frame.js");
+            await _browser.InvokeVoidAsync("setZoom", _frame, Math.Clamp(Zoom, 50, 200));
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_browser is null)
+            return;
+
+        try
+        {
+            await _browser.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

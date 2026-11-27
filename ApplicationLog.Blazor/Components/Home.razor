@@ -1,5 +1,9 @@
 @page "/"
+@using System.Globalization
+@using Microsoft.JSInterop
 @inject ApplicationFiles Files
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <header class="masthead">
     <h1>ApplicationLog</h1>
@@ -7,9 +11,39 @@
 </header>
 
 <main class="workspace">
-    <aside class="sidebar" aria-label="Application files">
-        <h2>Applications</h2>
-        <p class="root" title="@Files.Root">@Files.Root</p>
+    <aside class="sidebar" aria-label="Application files" @ref="_tree">
+        <div class="pane-heading">
+            <h2>Folders and files</h2>
+            <div class="folder-details">
+                @if (_folderCount is int count)
+                {
+                    <span class="folder-count">@(count == 1 ? "1 folder" : $"{count:N0} folders")</span>
+                }
+                <a class="path-link" href="#folder-path" draggable="false" title="@Files.Root"
+                   @onclick="OpenRoot" @onclick:preventDefault>@Files.Root</a>
+            </div>
+        </div>
+        <div class="tree-toolbar">
+            <label for="tree-sort">Sort by</label>
+            <div class="tree-toolbar-controls">
+                <select class="sort-select" id="tree-sort" value="@(_state.SortByDate ? "date" : "name")" @onchange="ChangeSort">
+                    <option value="name">Name</option>
+                    <option value="date">Date modified</option>
+                </select>
+                <div class="zoom-controls" role="group" aria-label="Folder tree zoom">
+                    <button type="button" aria-label="Zoom out in the folder tree"
+                            disabled="@(_state.TreeZoom == MinZoom)" @onclick="() => ChangeZoom(TreePane, -1)">−</button>
+                    <button type="button" aria-label="Reset folder tree zoom to 100%"
+                            @onclick="() => ChangeZoom(TreePane, 0)">@_state.TreeZoom%</button>
+                    <button type="button" aria-label="Zoom in on the folder tree"
+                            disabled="@(_state.TreeZoom == MaxZoom)" @onclick="() => ChangeZoom(TreePane, 1)">+</button>
+                </div>
+            </div>
+        </div>
+        @if (_folderOpenError is not null)
+        {
+            <p class="message error" role="status">@_folderOpenError</p>
+        }
         @if (_rootError is not null)
         {
             <p class="message" role="status">@_rootError</p>
@@ -20,89 +54,291 @@
         }
         else
         {
-            <ul class="tree" @key="_entries">
-                @foreach (var entry in _entries)
+            <ul class="tree" style="@ZoomStyle(_state.TreeZoom)" @key="_treeVersion">
+                @foreach (FileEntry entry in _entries)
                 {
-                    <TreeNode @key="entry.RelativePath" Entry="entry" SelectedPath="@_selected?.RelativePath" OnSelect="Select" />
+                    <TreeNode @key="entry.RelativePath" Entry="entry" SelectedPath="@_state.SelectedTreePath"
+                              ExpandedFolders="_expandedFolders" SortByDate="_state.SortByDate"
+                              OnSelect="Select" OnToggle="ToggleFolder" />
                 }
             </ul>
         }
     </aside>
+    <div class="pane-divider" role="separator" aria-label="Resize panes" aria-orientation="vertical" tabindex="0"></div>
 
     <section class="preview" aria-label="Document preview">
         @if (_selected is { } selected)
         {
-            var type = ApplicationFiles.PreviewType(selected.RelativePath);
-            var url = "/preview?path=" + Uri.EscapeDataString(selected.RelativePath);
             <div class="document-header">
-                <div>
+                <div class="pane-heading">
                     <h2>@selected.Name</h2>
-                    <p class="root">@selected.RelativePath</p>
+                    @if (ApplicationFiles.CanOpenOnDesktop(selected.RelativePath))
+                    {
+                        <a class="path-link" href="#document-path" draggable="false" title="@FullPath(selected)"
+                           @onclick="OpenSelected" @onclick:preventDefault>@FullPath(selected)</a>
+                    }
+                    else
+                    {
+                        <span class="path-text" title="@FullPath(selected)">@FullPath(selected)</span>
+                    }
                 </div>
-                @if (ApplicationFiles.CanOpenOnDesktop(selected.RelativePath))
-                {
-                    <button class="action primary" @onclick="OpenSelected">Open in desktop app</button>
-                }
+                <div class="zoom-controls preview-zoom" role="group" aria-label="Document preview zoom">
+                    <button type="button" aria-label="Zoom out in the document preview"
+                            disabled="@(_state.PreviewZoom == MinZoom)" @onclick="() => ChangeZoom(PreviewPane, -1)">−</button>
+                    <button type="button" aria-label="Reset preview zoom to 100%"
+                            @onclick="() => ChangeZoom(PreviewPane, 0)">@_state.PreviewZoom%</button>
+                    <button type="button" aria-label="Zoom in on the document preview"
+                            disabled="@(_state.PreviewZoom == MaxZoom)" @onclick="() => ChangeZoom(PreviewPane, 1)">+</button>
+                </div>
             </div>
-            @if (_openError is not null)
+        }
+        @if (_openError is not null)
+        {
+            <p class="message error" role="status">@_openError</p>
+        }
+        <div class="preview-scroll" tabindex="0" aria-label="Preview contents" @ref="_preview">
+            @if (_selected is { } document)
             {
-                <p class="message error" role="status">@_openError</p>
-            }
-            @if (type?.StartsWith("image/", StringComparison.Ordinal) == true)
-            {
-                <div class="image-preview"><img src="@url" alt="@selected.Name" /></div>
-            }
-            else if (type is not null)
-            {
-                <iframe @key="url" src="@url" title="@selected.Name"></iframe>
+                string? type = ApplicationFiles.PreviewType(document.RelativePath);
+                string url = "preview?path=" + Uri.EscapeDataString(document.RelativePath);
+                @if (type == "application/pdf")
+                {
+                    <PdfPreview @key="document.RelativePath" RelativePath="@document.RelativePath" Zoom="_state.PreviewZoom" />
+                }
+                else if (type?.StartsWith("image/", StringComparison.Ordinal) == true)
+                {
+                    <div class="image-preview" style="@ZoomStyle(_state.PreviewZoom)" @key="url">
+                        <img src="@url" alt="@document.Name" />
+                    </div>
+                }
+                else if (type is not null)
+                {
+                    <iframe class="document-frame" style="@ZoomStyle(_state.PreviewZoom)" @key="url"
+                            data-session-scroll-frame src="@url" title="@document.Name"></iframe>
+                }
+                else
+                {
+                    <div class="empty" style="@ZoomStyle(_state.PreviewZoom)">
+                        <h3>Preview unavailable</h3>
+                        <p>@(ApplicationFiles.CanOpenOnDesktop(document.RelativePath)
+                            ? "Open this document in its desktop app."
+                            : "Open this file from Windows File Explorer.")</p>
+                    </div>
+                }
             }
             else
             {
                 <div class="empty">
-                    <h3>Preview unavailable</h3>
-                    <p>@(ApplicationFiles.CanOpenOnDesktop(selected.RelativePath)
-                        ? "Open this document in its desktop app."
-                        : "Open this file from Windows File Explorer.")</p>
+                    <h2>Document preview</h2>
+                    <p>Select a file from the application folders.</p>
                 </div>
             }
-        }
-        else
-        {
-            <div class="empty">
-                <h2>Document preview</h2>
-                <p>Select a file from the application folders.</p>
-            </div>
-        }
+        </div>
     </section>
 </main>
 
 @code {
+    private const int MinZoom = 50;
+    private const int MaxZoom = 200;
+    private const int DefaultZoom = 100;
+    private const int ZoomStep = 25;
+    private const string TreePane = "tree";
+    private const string PreviewPane = "preview";
+
+    private BrowserSession _state = new();
+    private readonly HashSet<string> _expandedFolders = new(StringComparer.OrdinalIgnoreCase);
     private FileEntry[] _entries = [];
     private FileEntry? _selected;
+    private int? _folderCount;
+    private int _treeVersion;
     private string? _rootError;
+    private string? _folderOpenError;
     private string? _openError;
+    private ElementReference _tree;
+    private ElementReference _preview;
+    private IJSObjectReference? _sessionModule;
+    private DotNetObjectReference<Home>? _interop;
+    private bool _attached;
+    private bool _savePending;
 
-    protected override void OnInitialized() => Refresh();
+    protected override void OnInitialized() => ReadRoot();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                _sessionModule = await JS.InvokeAsync<IJSObjectReference>("import", "./application-session.js");
+                BrowserSession? saved = await _sessionModule.InvokeAsync<BrowserSession?>("load", Files.Root);
+                if (saved is not null)
+                    Restore(saved);
+
+                // The expanded branches and selected preview need to exist before restoring scroll.
+                StateHasChanged();
+                return;
+            }
+
+            if (_sessionModule is null)
+                return;
+
+            if (!_attached)
+            {
+                _interop ??= DotNetObjectReference.Create(this);
+                await _sessionModule.InvokeVoidAsync("attach", Files.Root, _tree, _preview, _interop);
+                _attached = true;
+            }
+
+            if (_savePending)
+            {
+                _savePending = false;
+                await _sessionModule.InvokeVoidAsync("save", Files.Root, _state);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (JSException)
+        {
+            // Browser storage can be unavailable without preventing browsing.
+        }
+    }
+
+    private void Restore(BrowserSession saved)
+    {
+        _state = saved;
+        _state.TreeZoom = Math.Clamp(saved.TreeZoom, MinZoom, MaxZoom);
+        _state.PreviewZoom = Math.Clamp(saved.PreviewZoom, MinZoom, MaxZoom);
+        _expandedFolders.UnionWith(saved.ExpandedFolders ?? []);
+        ReadRoot();
+        _state.SelectedTreePath = TryDescribe(saved.SelectedTreePath)?.RelativePath;
+        _selected = TryDescribe(saved.PreviewPath) is { IsFolder: false } document ? document : null;
+        _state.PreviewPath = _selected?.RelativePath;
+    }
 
     private void Refresh()
     {
-        _selected = null;
-        _openError = null;
         _rootError = null;
+        _folderOpenError = null;
+        _openError = null;
+        _treeVersion++;
+        ReadRoot();
+        _state.SelectedTreePath = TryDescribe(_state.SelectedTreePath)?.RelativePath;
+        _selected = TryDescribe(_state.PreviewPath) is { IsFolder: false } document ? document : null;
+        _state.PreviewPath = _selected?.RelativePath;
+        _savePending = true;
+    }
+
+    private void ReadRoot()
+    {
+        _rootError = null;
+        _folderCount = null;
         try
         {
-            _entries = Files.List("");
+            _entries = Files.List("", _state.SortByDate);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            _entries = [];
             _rootError = "The Applications folder could not be read. Check the folder path and permissions.";
+            return;
         }
+
+        try
+        {
+            _folderCount = Files.CountFolders();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Root items can still be browsed if the folder count is unavailable.
+        }
+    }
+
+    private FileEntry? TryDescribe(string? path)
+    {
+        if (path is null)
+            return null;
+
+        try
+        {
+            return Files.Describe(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private void ToggleFolder(FileEntry folder)
+    {
+        _state.SelectedTreePath = folder.RelativePath;
+        if (!_expandedFolders.Remove(folder.RelativePath))
+        {
+            // Only one top-level branch is open at a time, as in the desktop tree.
+            if (Path.GetDirectoryName(folder.RelativePath) is null or "")
+                foreach (FileEntry sibling in _entries)
+                    _expandedFolders.Remove(sibling.RelativePath);
+
+            _expandedFolders.Add(folder.RelativePath);
+        }
+
+        _state.ExpandedFolders = _expandedFolders.ToArray();
+        _savePending = true;
     }
 
     private void Select(FileEntry entry)
     {
+        _state.SelectedTreePath = entry.RelativePath;
+        _state.PreviewPath = entry.RelativePath;
         _selected = entry;
         _openError = null;
+        _savePending = true;
+    }
+
+    private void ChangeSort(ChangeEventArgs args)
+    {
+        _state.SortByDate = string.Equals(args.Value as string, "date", StringComparison.Ordinal);
+        ReadRoot();
+        _savePending = true;
+    }
+
+    [JSInvokable]
+    public Task ChangeZoom(string pane, int step) => InvokeAsync(() =>
+    {
+        if (pane == TreePane)
+            _state.TreeZoom = NextZoom(_state.TreeZoom, step);
+        else if (pane == PreviewPane && _selected is not null)
+            _state.PreviewZoom = NextZoom(_state.PreviewZoom, step);
+        else
+            return;
+
+        _savePending = true;
+        StateHasChanged();
+    });
+
+    private static int NextZoom(int current, int step) =>
+        step == 0 ? DefaultZoom : Math.Clamp(current + Math.Sign(step) * ZoomStep, MinZoom, MaxZoom);
+
+    private static string ZoomStyle(int percent) =>
+        $"zoom:{(percent / 100.0).ToString(CultureInfo.InvariantCulture)}";
+
+    private string FullPath(FileEntry entry) => Path.GetFullPath(entry.RelativePath, Files.Root);
+
+    private void OpenRoot()
+    {
+        try
+        {
+            Files.OpenRootOnDesktop();
+            _folderOpenError = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _folderOpenError = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            _folderOpenError = "Windows could not open the Applications folder.";
+        }
     }
 
     private void OpenSelected()
@@ -122,6 +358,29 @@
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             _openError = "Windows could not open this file. Check that it still exists and has a default app.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_sessionModule is not null)
+            {
+                if (_attached)
+                    await _sessionModule.InvokeVoidAsync("detach", Files.Root, _tree);
+                await _sessionModule.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (JSException)
+        {
+        }
+        finally
+        {
+            _interop?.Dispose();
         }
     }
 }

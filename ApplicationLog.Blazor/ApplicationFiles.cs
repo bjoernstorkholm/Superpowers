@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace ApplicationLog;
 
-public sealed record FileEntry(string Name, string RelativePath, bool IsFolder);
+public sealed record FileEntry(string Name, string RelativePath, bool IsFolder, DateTime Modified = default);
 
 public sealed class ApplicationFiles(string root)
 {
@@ -14,16 +14,53 @@ public sealed class ApplicationFiles(string root)
 
     public string Root { get; } = Path.GetFullPath(root);
 
-    public FileEntry[] List(string relativePath)
+    public FileEntry[] List(string relativePath, bool sortByDate = false)
     {
         var directory = new DirectoryInfo(Resolve(relativePath));
-        return directory.EnumerateFileSystemInfos()
+        IOrderedEnumerable<FileEntry> entries = directory.EnumerateFileSystemInfos()
             .Where(entry => (entry.Attributes & FileAttributes.ReparsePoint) == 0)
             .Select(entry => new FileEntry(entry.Name, Path.GetRelativePath(Root, entry.FullName),
-                entry is DirectoryInfo))
-            .OrderByDescending(entry => entry.IsFolder)
-            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+                entry is DirectoryInfo, entry.LastWriteTime))
+            .OrderByDescending(entry => !entry.IsFolder &&
+                string.Equals(entry.Name, "log.txt", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(entry => entry.IsFolder);
+
+        if (sortByDate)
+            entries = entries.ThenByDescending(entry => entry.Modified.ToUniversalTime());
+
+        return entries.ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public int CountFolders() =>
+        Directory.EnumerateDirectories(Resolve(""), "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        }).Count();
+
+    public FileEntry Describe(string relativePath)
+    {
+        string path = Resolve(relativePath);
+        FileAttributes attributes = File.GetAttributes(path);
+        return new FileEntry(Path.GetFileName(Path.TrimEndingDirectorySeparator(path)),
+            Path.GetRelativePath(Root, path), (attributes & FileAttributes.Directory) != 0,
+            File.GetLastWriteTime(path));
+    }
+
+    public void OpenRootOnDesktop()
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new InvalidOperationException("Opening folders in File Explorer is available on Windows.");
+
+        string path = Resolve("");
+        if ((File.GetAttributes(path) & FileAttributes.Directory) == 0)
+            throw new DirectoryNotFoundException();
+
+        using Process? process = Process.Start(new ProcessStartInfo(path)
+        {
+            UseShellExecute = true,
+            Verb = "open"
+        });
     }
 
     public static string? PreviewType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
