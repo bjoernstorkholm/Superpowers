@@ -1,0 +1,80 @@
+@using Applications
+
+<section class="workbook-preview" aria-label="Excel workbook preview">
+    @if (Sheets.Length == 0)
+    {
+        <p class="sheet-notice">This workbook has no worksheets.</p>
+    }
+    else
+    {
+        Sheet sheet = Sheets[_sheetIndex];
+        <label class="sheet-picker">
+            Worksheet
+            <select @bind="_sheetIndex">
+                @for (int index = 0; index < Sheets.Length; index++)
+                {
+                    <option value="@index">@Sheets[index].Name</option>
+                }
+            </select>
+        </label>
+        @if (sheet.Truncated)
+        {
+            <p class="sheet-notice">Showing up to 200 rows and 40 columns.</p>
+        }
+        @if (sheet.Cells.Length == 0)
+        {
+            <p class="sheet-notice">This worksheet is empty.</p>
+        }
+        else
+        {
+            <table class="sheet-grid" aria-label="@sheet.Name">
+                <thead>
+                    <tr>
+                        <th scope="col" aria-label="Row number"></th>
+                        @for (int column = 0; column < sheet.Cells[0].Length; column++)
+                        {
+                            <th scope="col">@ColumnLabel(sheet.FirstColumn + column)</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int row = 0; row < sheet.Cells.Length; row++)
+                    {
+                        <tr>
+                            <th scope="row">@(sheet.FirstRow + row)</th>
+                            @foreach (string value in sheet.Cells[row])
+                            {
+                                <td>@value</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Sheet[] Sheets { get; set; } = [];
+
+    private int _sheetIndex;
+
+    protected override void OnParametersSet()
+    {
+        if (_sheetIndex >= Sheets.Length)
+            _sheetIndex = 0;
+    }
+
+    private static string ColumnLabel(int column)
+    {
+        string label = "";
+        while (column > 0)
+        {
+            column--;
+            label = (char)('A' + column % 26) + label;
+            column /= 26;
+        }
+
+        return label;
+    }
+}

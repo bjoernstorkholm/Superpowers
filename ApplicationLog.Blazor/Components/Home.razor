@@ -105,6 +105,12 @@
                 {
                     <PdfPreview @key="document.RelativePath" RelativePath="@document.RelativePath" Zoom="_state.PreviewZoom" />
                 }
+                else if (ApplicationFiles.CanPreviewOffice(document.RelativePath))
+                {
+                    <div style="@ZoomStyle(_state.PreviewZoom)" @key="(document.RelativePath, _treeVersion)">
+                        <OfficePreview RelativePath="@document.RelativePath" />
+                    </div>
+                }
                 else if (type?.StartsWith("image/", StringComparison.Ordinal) == true)
                 {
                     <div class="image-preview" style="@ZoomStyle(_state.PreviewZoom)" @key="url">

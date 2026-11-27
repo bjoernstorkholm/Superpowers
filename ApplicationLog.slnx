@@ -2,4 +2,5 @@
   <Project Path="ApplicationLog.Blazor/ApplicationLog.Blazor.csproj" />
   <Project Path="ApplicationLog.Wpf/ApplicationLog.Wpf.csproj" />
   <Project Path="ApplicationLog.Tests/ApplicationLog.Tests.csproj" />
+  <Project Path="ApplicationLog.DocumentReaders/ApplicationLog.DocumentReaders.csproj" />
 </Solution>

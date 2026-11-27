@@ -1,0 +1,48 @@
+@using Applications
+
+<article class="word-preview" aria-label="Word document preview">
+    @if (Blocks.Length == 0)
+    {
+        <p class="word-empty">This document has no previewable content.</p>
+    }
+    @foreach (WordBlock block in Blocks)
+    {
+        @switch (block)
+        {
+            case WordParagraph paragraph:
+                @RenderParagraph(paragraph)
+                break;
+            case WordTable table:
+                <div class="word-table-scroll">
+                    <table>
+                        <tbody>
+                            @foreach (WordParagraph[][] row in table.Rows)
+                            {
+                                <tr>
+                                    @foreach (WordParagraph[] cell in row)
+                                    {
+                                        <td>
+                                            @foreach (WordParagraph innerParagraph in cell)
+                                            {
+                                                @RenderParagraph(innerParagraph)
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                break;
+        }
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public WordBlock[] Blocks { get; set; } = [];
+
+    private static RenderFragment RenderParagraph(WordParagraph paragraph) => @<p class="word-paragraph">@foreach (WordRun run in paragraph.Runs)
+    {
+        <span class="@(run.Bold ? "word-bold" : null) @(run.Italic ? "word-italic" : null)">@run.Text</span>
+    }</p>;
+}

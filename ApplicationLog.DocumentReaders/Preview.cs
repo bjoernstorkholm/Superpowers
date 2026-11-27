@@ -21,7 +21,12 @@ public static class PreviewReader
     {
         using FileStream file = library.Open(entry.Path);
 
-        return Path.GetExtension(entry.Name).ToLowerInvariant() switch
+        return Read(file, Path.GetExtension(entry.Name));
+    }
+
+    public static Preview Read(Stream file, string extension)
+    {
+        return extension.ToLowerInvariant() switch
         {
             ".txt" => new Preview(Text: ReadText(file)),
             ".docx" => new Preview(Word: ReadWord(file)),
@@ -32,7 +37,7 @@ public static class PreviewReader
 
     private static string ReadText(Stream file)
     {
-        using StreamReader reader = new StreamReader(file, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        using StreamReader reader = new StreamReader(file, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         char[] buffer = new char[200_000];
         int count = reader.ReadBlock(buffer);
 
@@ -41,7 +46,7 @@ public static class PreviewReader
 
     private static WordBlock[] ReadWord(Stream file)
     {
-        using ZipArchive archive = new ZipArchive(file);
+        using ZipArchive archive = new ZipArchive(file, ZipArchiveMode.Read, leaveOpen: true);
         ZipArchiveEntry document = archive.GetEntry("word/document.xml") ?? throw new InvalidDataException();
         using Stream stream = document.Open();
         XElement body = XDocument.Load(stream).Root?.Element(WordNamespace + "body")

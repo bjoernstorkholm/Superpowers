@@ -1,0 +1,30 @@
+.word-preview {
+    padding: clamp(1rem, 3vw, 2rem);
+}
+
+.word-paragraph {
+    min-height: 1.5em;
+    margin: 0;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    tab-size: 4;
+}
+
+.word-bold { font-weight: 700; }
+.word-italic { font-style: italic; }
+
+.word-table-scroll {
+    overflow-x: auto;
+    margin-block: .75rem;
+}
+
+table { border-collapse: collapse; }
+
+td {
+    border: 1px solid #dce3e5;
+    padding: .35rem .55rem;
+    vertical-align: top;
+}
+
+.word-empty { color: #52645f; }

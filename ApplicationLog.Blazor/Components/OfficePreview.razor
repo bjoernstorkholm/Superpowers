@@ -1,0 +1,39 @@
+@using Applications
+@inject ApplicationFiles Files
+
+@if (_preview?.Word is WordBlock[] word)
+{
+    <WordPreview Blocks="word" />
+}
+else if (_preview?.Sheets is Sheet[] sheets)
+{
+    <ExcelPreview Sheets="sheets" />
+}
+else
+{
+    <p class="message error" role="status">This Office document could not be previewed.</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public string RelativePath { get; set; } = "";
+
+    private Preview? _preview;
+    private string? _openedPath;
+
+    protected override void OnParametersSet()
+    {
+        if (_openedPath == RelativePath)
+            return;
+
+        _openedPath = RelativePath;
+        try
+        {
+            _preview = Files.ReadOfficePreview(RelativePath);
+        }
+        catch (Exception)
+        {
+            // Malformed documents can fail in the ZIP, XML or workbook reader.
+            _preview = null;
+        }
+    }
+}

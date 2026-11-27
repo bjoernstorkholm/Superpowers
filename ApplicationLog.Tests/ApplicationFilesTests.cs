@@ -1,3 +1,7 @@
+using System.IO.Compression;
+using Applications;
+using ClosedXML.Excel;
+
 namespace ApplicationLog.Tests;
 
 public sealed class ApplicationFilesTests
@@ -110,5 +114,36 @@ public sealed class ApplicationFilesTests
     {
         Assert.Equal(previewType, ApplicationFiles.PreviewType(file));
         Assert.Equal(canOpen, ApplicationFiles.CanOpenOnDesktop(file));
+    }
+
+    [Fact]
+    public void ReadOfficePreviewUsesTheSharedReaderForWordAndExcel()
+    {
+        using TestDirectory fixtures = new();
+        string nested = fixtures.CreateFolder("Nested");
+        using (ZipArchive archive = ZipFile.Open(Path.Combine(nested, "Resume.DOCX"), ZipArchiveMode.Create))
+        using (StreamWriter document = new(archive.CreateEntry("word/document.xml").Open()))
+        {
+            document.Write("""
+                <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                    <w:body><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Résumé</w:t></w:r></w:p></w:body>
+                </w:document>
+                """);
+        }
+
+        using (XLWorkbook workbook = new())
+        {
+            workbook.AddWorksheet("Applications").Cell("C4").Value = "Interview";
+            workbook.SaveAs(Path.Combine(nested, "Tracker.XLSX"));
+        }
+
+        ApplicationFiles files = new(fixtures.Path);
+        WordParagraph paragraph = Assert.IsType<WordParagraph>(
+            Assert.Single(files.ReadOfficePreview(Path.Combine("Nested", "Resume.DOCX")).Word!));
+        Assert.Equal(new WordRun("Résumé", Bold: true, Italic: false), Assert.Single(paragraph.Runs));
+        Sheet sheet = Assert.Single(files.ReadOfficePreview(Path.Combine("Nested", "Tracker.XLSX")).Sheets!);
+        Assert.Equal((4, 3, "Interview"), (sheet.FirstRow, sheet.FirstColumn, sheet.Cells[0][0]));
+        Assert.Throws<FileNotFoundException>(() => files.ReadOfficePreview("Nested/../Resume.DOCX"));
+        Assert.Throws<NotSupportedException>(() => files.ReadOfficePreview("Legacy.doc"));
     }
 }

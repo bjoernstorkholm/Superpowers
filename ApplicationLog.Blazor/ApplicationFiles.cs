@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Applications;
 
 namespace ApplicationLog;
 
@@ -77,6 +78,20 @@ public sealed class ApplicationFiles(string root)
 
     public static bool CanOpenOnDesktop(string path) =>
         PreviewType(path) is not null || DesktopDocuments.Contains(Path.GetExtension(path));
+
+    public static bool CanPreviewOffice(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() is ".docx" or ".xlsx";
+
+    public Preview ReadOfficePreview(string relativePath)
+    {
+        if (!CanPreviewOffice(relativePath))
+            throw new NotSupportedException("Only DOCX and XLSX can be previewed as Office documents.");
+
+        string path = ResolveFile(relativePath);
+        using FileStream file = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+        return PreviewReader.Read(file, Path.GetExtension(path));
+    }
 
     public string ResolveFile(string relativePath)
     {

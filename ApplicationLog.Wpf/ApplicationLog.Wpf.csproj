@@ -13,7 +13,7 @@
     <InternalsVisibleTo Include="ApplicationLog.Tests" />
     <None Update="PdfViewer/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <ProjectReference Include="../ApplicationLog.DocumentReaders/ApplicationLog.DocumentReaders.csproj" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3124.44" />
   </ItemGroup>
 </Project>

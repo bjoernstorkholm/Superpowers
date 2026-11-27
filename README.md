@@ -20,6 +20,7 @@ The app reads `C:\Users\bjoer\Documents\Applications` by default. To change the 
 ## Previews
 
 - PDF, PNG, JPEG, GIF, WebP, and BMP preview in the browser. PDFs use a bundled offline viewer that remembers the reading position.
+- DOCX previews show formatted text and tables. XLSX previews show cell values and let you switch worksheets.
 - TXT, Markdown, CSV, and log files preview as plain text.
 - **Open in desktop app** uses your Windows file association for these formats and common Word, Excel, PowerPoint, OpenDocument, email, and image formats.
 - Other file types appear in the tree. Use Windows File Explorer to open them.

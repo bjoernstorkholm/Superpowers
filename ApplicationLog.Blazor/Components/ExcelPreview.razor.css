@@ -1,0 +1,53 @@
+.workbook-preview {
+    padding: 1rem;
+}
+
+.sheet-picker {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: .75rem;
+    font-weight: 600;
+}
+
+.sheet-picker select {
+    max-width: 100%;
+    padding: .25rem .4rem;
+    border: 1px solid #bdc9c7;
+    border-radius: .3rem;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    font-weight: normal;
+}
+
+.sheet-notice {
+    margin-bottom: .75rem;
+    color: #52645f;
+}
+
+.sheet-grid {
+    border-collapse: collapse;
+    color: inherit;
+}
+
+.sheet-grid th,
+.sheet-grid td {
+    min-width: 3ch;
+    padding: .3rem .55rem;
+    border: 1px solid #dce3e5;
+}
+
+.sheet-grid th {
+    background: #eff4f2;
+    color: #344f46;
+    text-align: center;
+}
+
+.sheet-grid td {
+    max-width: 32ch;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+}
